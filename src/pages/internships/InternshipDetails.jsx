@@ -13,6 +13,7 @@ import {
   Alert,
   Modal,
   Form,
+  Input,
   message
 } from 'antd'
 import { 
@@ -32,6 +33,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
+const { TextArea } = Input
 
 const InternshipDetails = () => {
   const { id } = useParams()
@@ -42,6 +44,7 @@ const InternshipDetails = () => {
   const [form] = Form.useForm()
   const [applicationModalVisible, setApplicationModalVisible] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState(null)
+  const [applyModalVisible, setApplyModalVisible] = useState(false)
 
   const { data: internship, isLoading, error } = useQuery({
     queryKey: ['internship', id],
@@ -55,10 +58,12 @@ const InternshipDetails = () => {
   })
 
   const applyMutation = useMutation({
-    mutationFn: applicationAPI.createApplication,
+    mutationFn: (data) => applicationAPI.createApplication(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['applications'])
       message.success('Application submitted successfully!')
+      setApplyModalVisible(false)
+      form.resetFields()
       navigate('/applications')
     },
     onError: () => {
@@ -86,6 +91,14 @@ const InternshipDetails = () => {
   const handleViewApplication = (application) => {
     setSelectedApplication(application)
     setApplicationModalVisible(true)
+  }
+
+  const handleApply = (values) => {
+    const applicationData = {
+      internshipId: parseInt(id),
+      coverLetter: values.coverLetter
+    }
+    applyMutation.mutate(applicationData)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -268,7 +281,7 @@ const InternshipDetails = () => {
                   type="primary" 
                   size="large" 
                   block
-                  onClick={() => form.submit()}
+                  onClick={() => setApplyModalVisible(true)}
                   loading={applyMutation.isLoading}
                 >
                   Apply Now
@@ -374,6 +387,32 @@ const InternshipDetails = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Apply Modal */}
+      <Modal
+        title="Apply for the Internship"
+        open={applyModalVisible}
+        onCancel={() => setApplyModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={form}
+          onFinish={handleApply}
+        >
+          <Form.Item
+            name="coverLetter"
+            rules={[{ required: true, message: 'Please write a cover letter' }]}
+          >
+            <TextArea rows={4} />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={applyMutation.isLoading}>
+              Submit Application
+            </Button>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   )

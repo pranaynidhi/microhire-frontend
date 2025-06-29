@@ -157,7 +157,7 @@ const Dashboard = () => {
                       title={internship.title}
                       description={
                         <Space direction="vertical" size="small">
-                          <Text>{internship.companyName}</Text>
+                          <Text>{internship.company?.companyName || 'Unknown Company'}</Text>
                           <Text type="secondary">{internship.location}</Text>
                           <Text type="secondary">
                             Deadline: {dayjs(internship.deadline).format('MMM DD, YYYY')}

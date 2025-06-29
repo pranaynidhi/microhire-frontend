@@ -90,6 +90,8 @@ const InternshipListings = () => {
 
   const internships = data?.data?.internships || []
 
+  console.log('Internships:', internships);
+
   return (
     <div>
       {/* Header */}
@@ -243,109 +245,112 @@ const InternshipListings = () => {
       ) : (
         <>
           <Row gutter={[24, 24]}>
-            {internships.map((internship) => (
-              <Col xs={24} lg={12} xl={8} key={internship.id}>
-                <Card
-                  hoverable
-                  style={{ height: '100%' }}
-                  actions={[
-                    <Button
-                      key="save"
-                      type="text"
-                      icon={savedInternships.has(internship.id) ? <HeartFilled /> : <HeartOutlined />}
-                      onClick={() => handleSaveInternship(internship.id)}
-                    >
-                      {savedInternships.has(internship.id) ? 'Saved' : 'Save'}
-                    </Button>,
-                    <Button 
-                      key="apply"
-                      type="primary" 
-                      onClick={() => navigate(`/internships/${internship.id}`)}
-                    >
-                      Apply Now
-                    </Button>
-                  ]}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
-                    <Avatar 
-                      size={48}
-                      src={internship.companyLogo}
-                      style={{ backgroundColor: '#DC143C' }}
-                    >
-                      {internship.companyName?.charAt(0)}
-                    </Avatar>
-                    <div style={{ flex: 1 }}>
-                      <Title level={5} style={{ margin: 0, marginBottom: '4px' }}>
-                        {internship.title}
-                      </Title>
-                      <Text strong style={{ color: '#DC143C' }}>
-                        {internship.companyName}
-                      </Text>
+            {internships.map((internship) => {
+              const companyName = internship.company?.companyName || 'Unknown Company';
+              const companyLogo = internship.company?.logoUrl;
+              const skills = Array.isArray(internship.skills) ? internship.skills : [];
+              return (
+                <Col xs={24} lg={12} xl={8} key={internship.id}>
+                  <Card
+                    hoverable
+                    style={{ height: '100%' }}
+                    actions={[
+                      <Button
+                        key="save"
+                        type="text"
+                        icon={savedInternships.has(internship.id) ? <HeartFilled /> : <HeartOutlined />}
+                        onClick={() => handleSaveInternship(internship.id)}
+                      >
+                        {savedInternships.has(internship.id) ? 'Saved' : 'Save'}
+                      </Button>,
+                      <Button 
+                        key="apply"
+                        type="primary" 
+                        onClick={() => navigate(`/internships/${internship.id}`)}
+                      >
+                        Apply Now
+                      </Button>
+                    ]}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+                      <Avatar 
+                        size={48}
+                        src={companyLogo}
+                        style={{ backgroundColor: '#DC143C' }}
+                      >
+                        {companyName.charAt(0)}
+                      </Avatar>
+                      <div style={{ flex: 1 }}>
+                        <Title level={5} style={{ margin: 0, marginBottom: '4px' }}>
+                          {internship.title}
+                        </Title>
+                        <Text strong style={{ color: '#DC143C' }}>
+                          {companyName}
+                        </Text>
+                      </div>
                     </div>
-                  </div>
 
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <EnvironmentOutlined style={{ color: '#666' }} />
-                      <Text type="secondary">{internship.location}</Text>
-                      <Tag color="blue">{internship.type}</Tag>
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <DollarOutlined style={{ color: '#666' }} />
-                      <Text type="secondary">
-                        NPR {internship.stipend?.toLocaleString()} /month
-                      </Text>
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CalendarOutlined style={{ color: '#666' }} />
-                      <Text type="secondary">
-                        Deadline: {dayjs(internship.deadline).format('MMM DD, YYYY')}
-                      </Text>
-                    </div>
-                  </Space>
-
-                  <div style={{ marginTop: '12px' }}>
-                    <Text 
-                      ellipsis={{ rows: 2 }} 
-                      style={{ color: '#666', fontSize: '14px' }}
-                    >
-                      {internship.description}
-                    </Text>
-                  </div>
-
-                  <div style={{ marginTop: '12px' }}>
-                    <Space wrap size="small">
-                      {internship.skills?.slice(0, 3).map((skill, index) => (
-                        <Tag key={index} color="geekblue" size="small">
-                          {skill}
-                        </Tag>
-                      ))}
-                      {internship.skills?.length > 3 && (
-                        <Tag size="small">+{internship.skills.length - 3} more</Tag>
-                      )}
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <EnvironmentOutlined style={{ color: '#666' }} />
+                        <Text type="secondary">{internship.location}</Text>
+                        <Tag color="blue">{internship.type}</Tag>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <DollarOutlined style={{ color: '#666' }} />
+                        <Text type="secondary">
+                          NPR {Number(internship.stipend).toLocaleString()} /month
+                        </Text>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CalendarOutlined style={{ color: '#666' }} />
+                        <Text type="secondary">
+                          Deadline: {dayjs(internship.deadline).format('MMM DD, YYYY')}
+                        </Text>
+                      </div>
                     </Space>
-                  </div>
 
-                  <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Posted {dayjs(internship.createdAt).fromNow()}
-                    </Text>
-                    <Text style={{ fontSize: '12px', color: '#DC143C' }}>
-                      {internship.applicationsCount || 0} applications
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
-            ))}
+                    <div style={{ marginTop: '12px' }}>
+                      <Text 
+                        ellipsis={{ rows: 2 }} 
+                        style={{ color: '#666', fontSize: '14px' }}
+                      >
+                        {internship.description}
+                      </Text>
+                    </div>
+
+                    <div style={{ marginTop: '12px' }}>
+                      <Space wrap size="small">
+                        {skills.slice(0, 3).map((skill, index) => (
+                          <Tag key={index} color="geekblue" size="small">
+                            {skill}
+                          </Tag>
+                        ))}
+                        {skills.length > 3 && (
+                          <Tag size="small">+{skills.length - 3} more</Tag>
+                        )}
+                      </Space>
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Posted {dayjs(internship.createdAt).fromNow()}
+                      </Text>
+                      <Text style={{ fontSize: '12px', color: '#DC143C' }}>
+                        {internship.applicationsCount || 0} applications
+                      </Text>
+                    </div>
+                  </Card>
+                </Col>
+              );
+            })}
           </Row>
 
           {/* Pagination */}
           <div style={{ textAlign: 'center', marginTop: '40px' }}>
             <Pagination
               current={searchParams.page}
-              total={data?.data?.total || 0}
+              total={data?.data?.pagination?.totalItems || 0}
               pageSize={searchParams.limit}
               onChange={(page) => handleFilterChange('page', page)}
               showSizeChanger

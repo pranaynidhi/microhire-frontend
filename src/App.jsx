@@ -1,6 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { Layout } from 'antd'
+import { Routes, Route, Navigate, BrowserRouter as Router } from 'react-router-dom'
+import { Layout, ConfigProvider } from 'antd'
 import { useEffect } from 'react'
+import { Toaster } from 'react-hot-toast'
 
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext'
@@ -37,8 +38,8 @@ import Settings from './pages/settings/Settings'
 // Components
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoadingSpinner from './components/common/LoadingSpinner'
-import TestUserLogin from './components/common/TestUserLogin'
 import BackendStatus from './components/common/BackendStatus'
+import NotificationDropdown from './components/common/NotificationDropdown'
 
 const { Content } = Layout
 
@@ -176,8 +177,8 @@ function AppContent() {
         </Layout>
       </Layout>
 
-      {/* Test User Login Component - Only show on public pages */}
-      {!isAuthenticated && <TestUserLogin />}
+      {/* Notification Dropdown */}
+      {isAuthenticated && <NotificationDropdown />}
     </Layout>
   )
 }
@@ -187,7 +188,10 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <SidebarProvider>
-          <AppContent />
+          <ConfigProvider>
+            <Toaster />
+            <AppContent />
+          </ConfigProvider>
         </SidebarProvider>
       </SocketProvider>
     </AuthProvider>
