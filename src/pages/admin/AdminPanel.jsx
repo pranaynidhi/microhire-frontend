@@ -1,17 +1,18 @@
-import { useState } from 'react'
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Statistic, 
-  Table, 
-  Button, 
-  Typography, 
-  Space, 
-  Tag, 
-  Avatar, 
-  Modal, 
-  Input, 
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Button,
+  Typography,
+  Space,
+  Tag,
+  Avatar,
+  Modal,
+  Input,
   Select,
   Tabs,
   Alert,
@@ -19,12 +20,12 @@ import {
   List,
   Badge,
   Tooltip,
-  Dropdown
-} from 'antd'
-import { 
-  UserOutlined, 
-  FolderOutlined, 
-  FileTextOutlined, 
+  Dropdown,
+} from "antd";
+import {
+  UserOutlined,
+  FolderOutlined,
+  FileTextOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
   EditOutlined,
@@ -34,143 +35,197 @@ import {
   MoreOutlined,
   DownloadOutlined,
   ReloadOutlined,
-  SearchOutlined
-} from '@ant-design/icons'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminAPI } from '../../services/api'
-import LoadingSpinner from '../../components/common/LoadingSpinner'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import toast from 'react-hot-toast'
+  SearchOutlined,
+} from "@ant-design/icons";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminAPI } from "../../services/api";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import toast from "react-hot-toast";
 
-dayjs.extend(relativeTime)
+dayjs.extend(relativeTime);
 
-const { Title, Text } = Typography
-const { TabPane } = Tabs
-const { Option } = Select
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+const { Option } = Select;
 
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState('overview')
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [userModalVisible, setUserModalVisible] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") || "users"
+  );
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userModalVisible, setUserModalVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const queryClient = useQueryClient();
+
+  // Update URL when tab changes
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setSearchParams({ tab: key });
+  };
+
+  // Handle URL parameter changes
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (
+      tabFromUrl &&
+      ["users", "internships", "reports", "settings"].includes(tabFromUrl)
+    ) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   // Fetch admin dashboard data
-  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
-    queryKey: ['admin-dashboard'],
-    queryFn: adminAPI.getDashboard
-  })
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+  } = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: adminAPI.getDashboard,
+    onError: (error) => {
+      console.error("Dashboard API Error:", error);
+      console.error("Dashboard Error Response:", error.response?.data);
+    },
+  });
 
   // Fetch users
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users', searchTerm, statusFilter],
-    queryFn: () => adminAPI.getUsers({ search: searchTerm, status: statusFilter })
-  })
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery({
+    queryKey: ["admin-users", searchTerm, statusFilter],
+    queryFn: () =>
+      adminAPI.getUsers({ search: searchTerm, status: statusFilter }),
+    onError: (error) => {
+      console.error("Users API Error:", error);
+      console.error("Users Error Response:", error.response?.data);
+    },
+  });
 
   // Fetch internships
-  const { data: internshipsData, isLoading: internshipsLoading } = useQuery({
-    queryKey: ['admin-internships'],
-    queryFn: () => adminAPI.getInternships()
-  })
+  const {
+    data: internshipsData,
+    isLoading: internshipsLoading,
+    error: internshipsError,
+  } = useQuery({
+    queryKey: ["admin-internships"],
+    queryFn: () => adminAPI.getInternships(),
+    onError: (error) => {
+      console.error("Internships API Error:", error);
+      console.error("Internships Error Response:", error.response?.data);
+    },
+  });
 
   // Fetch reports
-  const { data: reportsData, isLoading: reportsLoading } = useQuery({
-    queryKey: ['admin-reports'],
-    queryFn: () => adminAPI.getReports()
-  })
+  const {
+    data: reportsData,
+    isLoading: reportsLoading,
+    error: reportsError,
+  } = useQuery({
+    queryKey: ["admin-reports"],
+    queryFn: () => adminAPI.getReports(),
+    onError: (error) => {
+      console.error("Reports API Error:", error);
+      console.error("Reports Error Response:", error.response?.data);
+    },
+  });
 
   // Ban user mutation
   const banUserMutation = useMutation({
     mutationFn: adminAPI.banUser,
     onSuccess: () => {
-      toast.success('User banned successfully')
-      queryClient.invalidateQueries(['admin-users'])
+      toast.success("User banned successfully");
+      queryClient.invalidateQueries(["admin-users"]);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to ban user')
-    }
-  })
+      toast.error(error.response?.data?.message || "Failed to ban user");
+    },
+  });
 
   // Unban user mutation
   const unbanUserMutation = useMutation({
     mutationFn: adminAPI.unbanUser,
     onSuccess: () => {
-      toast.success('User unbanned successfully')
-      queryClient.invalidateQueries(['admin-users'])
+      toast.success("User unbanned successfully");
+      queryClient.invalidateQueries(["admin-users"]);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to unban user')
-    }
-  })
+      toast.error(error.response?.data?.message || "Failed to unban user");
+    },
+  });
 
   // Delete internship mutation
   const deleteInternshipMutation = useMutation({
     mutationFn: adminAPI.deleteInternship,
     onSuccess: () => {
-      toast.success('Internship deleted successfully')
-      queryClient.invalidateQueries(['admin-internships'])
+      toast.success("Internship deleted successfully");
+      queryClient.invalidateQueries(["admin-internships"]);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete internship')
-    }
-  })
+      toast.error(
+        error.response?.data?.message || "Failed to delete internship"
+      );
+    },
+  });
 
   const handleBanUser = (userId) => {
     Modal.confirm({
-      title: 'Ban User',
+      title: "Ban User",
       icon: <ExclamationCircleOutlined />,
-      content: 'Are you sure you want to ban this user? They will not be able to access the platform.',
-      okText: 'Ban User',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      content:
+        "Are you sure you want to ban this user? They will not be able to access the platform.",
+      okText: "Ban User",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk() {
-        banUserMutation.mutate(userId)
-      }
-    })
-  }
+        banUserMutation.mutate(userId);
+      },
+    });
+  };
 
   const handleUnbanUser = (userId) => {
-    unbanUserMutation.mutate(userId)
-  }
+    unbanUserMutation.mutate(userId);
+  };
 
   const handleDeleteInternship = (internshipId) => {
     Modal.confirm({
-      title: 'Delete Internship',
+      title: "Delete Internship",
       icon: <ExclamationCircleOutlined />,
-      content: 'Are you sure you want to delete this internship? This action cannot be undone.',
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
+      content:
+        "Are you sure you want to delete this internship? This action cannot be undone.",
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
       onOk() {
-        deleteInternshipMutation.mutate(internshipId)
-      }
-    })
-  }
+        deleteInternshipMutation.mutate(internshipId);
+      },
+    });
+  };
 
   const handleViewUser = (user) => {
-    setSelectedUser(user)
-    setUserModalVisible(true)
-  }
+    setSelectedUser(user);
+    setUserModalVisible(true);
+  };
 
   const userColumns = [
     {
-      title: 'User',
-      dataIndex: 'fullName',
-      key: 'fullName',
+      title: "User",
+      dataIndex: "fullName",
+      key: "fullName",
       render: (name, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Avatar 
-            src={record.avatar}
-            style={{ backgroundColor: '#DC143C' }}
-          >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <Avatar src={record.avatar} style={{ backgroundColor: "#DC143C" }}>
             {name?.charAt(0)?.toUpperCase()}
           </Avatar>
           <div>
             <Text strong>{name}</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            <Text type="secondary" style={{ fontSize: "12px" }}>
               {record.email}
             </Text>
           </div>
@@ -178,83 +233,85 @@ const AdminPanel = () => {
       ),
     },
     {
-      title: 'Role',
-      dataIndex: 'role',
-      key: 'role',
+      title: "Role",
+      dataIndex: "role",
+      key: "role",
       render: (role) => (
-        <Tag color={
-          role === 'admin' ? 'red' : 
-          role === 'business' ? 'blue' : 
-          'green'
-        }>
+        <Tag
+          color={
+            role === "admin" ? "red" : role === "business" ? "blue" : "green"
+          }
+        >
           {role?.toUpperCase()}
         </Tag>
       ),
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
       render: (status) => (
-        <Badge 
-          status={status === 'active' ? 'success' : 'error'}
+        <Badge
+          status={status === "active" ? "success" : "error"}
           text={status?.charAt(0)?.toUpperCase() + status?.slice(1)}
         />
       ),
     },
     {
-      title: 'Joined',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => dayjs(date).format('MMM DD, YYYY'),
+      title: "Joined",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date) => dayjs(date).format("MMM DD, YYYY"),
     },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: "Actions",
+      key: "actions",
       render: (_, record) => (
         <Dropdown
           menu={{
             items: [
               {
-                key: 'view',
+                key: "view",
                 icon: <EyeOutlined />,
-                label: 'View Details',
-                onClick: () => handleViewUser(record)
+                label: "View Details",
+                onClick: () => handleViewUser(record),
               },
               {
-                key: 'edit',
+                key: "edit",
                 icon: <EditOutlined />,
-                label: 'Edit User',
-                onClick: () => toast.info('Edit user feature coming soon')
+                label: "Edit User",
+                onClick: () => toast.info("Edit user feature coming soon"),
               },
-              { type: 'divider' },
-              record.status === 'active' ? {
-                key: 'ban',
-                icon: <UserDeleteOutlined />,
-                label: 'Ban User',
-                danger: true,
-                onClick: () => handleBanUser(record.id)
-              } : {
-                key: 'unban',
-                icon: <CheckCircleOutlined />,
-                label: 'Unban User',
-                onClick: () => handleUnbanUser(record.id)
-              }
-            ]
+              { type: "divider" },
+              record.status === "active"
+                ? {
+                    key: "ban",
+                    icon: <UserDeleteOutlined />,
+                    label: "Ban User",
+                    danger: true,
+                    onClick: () => handleBanUser(record.id),
+                  }
+                : {
+                    key: "unban",
+                    icon: <CheckCircleOutlined />,
+                    label: "Unban User",
+                    onClick: () => handleUnbanUser(record.id),
+                  },
+            ],
           }}
-          trigger={['click']}
+          trigger={["click"]}
         >
           <Button type="text" icon={<MoreOutlined />} />
         </Dropdown>
       ),
     },
-  ]
+  ];
 
   const internshipColumns = [
     {
-      title: 'Internship',
-      dataIndex: 'title',
-      key: 'title',
+      title: "Internship",
+      dataIndex: "title",
+      key: "title",
       render: (title, record) => (
         <div>
           <Text strong>{title}</Text>
@@ -264,49 +321,45 @@ const AdminPanel = () => {
       ),
     },
     {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      render: (category) => (
-        <Tag color="blue">{category}</Tag>
-      ),
+      title: "Category",
+      dataIndex: "category",
+      key: "category",
+      render: (category) => <Tag color="blue">{category}</Tag>,
     },
     {
-      title: 'Applications',
-      dataIndex: 'applicationsCount',
-      key: 'applicationsCount',
-      render: (count) => (
-        <Badge count={count || 0} showZero />
-      ),
+      title: "Applications",
+      dataIndex: "applicationsCount",
+      key: "applicationsCount",
+      render: (count) => <Badge count={count || 0} showZero />,
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
       render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
+        <Tag color={status === "active" ? "green" : "red"}>
           {status?.toUpperCase()}
         </Tag>
       ),
     },
     {
-      title: 'Posted',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      title: "Posted",
+      dataIndex: "createdAt",
+      key: "createdAt",
       render: (date) => dayjs(date).fromNow(),
     },
     {
-      title: 'Actions',
-      key: 'actions',
+      title: "Actions",
+      key: "actions",
       render: (_, record) => (
         <Space>
           <Tooltip title="View Details">
             <Button type="text" icon={<EyeOutlined />} />
           </Tooltip>
           <Tooltip title="Delete">
-            <Button 
-              type="text" 
-              danger 
+            <Button
+              type="text"
+              danger
               icon={<DeleteOutlined />}
               onClick={() => handleDeleteInternship(record.id)}
             />
@@ -314,33 +367,49 @@ const AdminPanel = () => {
         </Space>
       ),
     },
-  ]
+  ];
 
   if (dashboardLoading) {
-    return <LoadingSpinner />
+    return <LoadingSpinner />;
   }
 
-  const stats = dashboardData?.data || {}
+  // Debug logging
+  console.log("Dashboard Data:", dashboardData);
+  console.log("Users Data:", usersData);
+  console.log("Users Array:", usersData?.data?.data?.users);
+  console.log("Internships Data:", internshipsData);
+  console.log("Internships Array:", internshipsData?.data?.data?.internships);
+  console.log("Reports Data:", reportsData);
+  console.log("Reports Array:", reportsData?.data?.data?.reports);
+
+  // Log any errors
+  if (dashboardError) console.error("Dashboard Error:", dashboardError);
+  if (usersError) console.error("Users Error:", usersError);
+  if (internshipsError) console.error("Internships Error:", internshipsError);
+  if (reportsError) console.error("Reports Error:", reportsError);
+
+  const stats = dashboardData?.data?.systemHealth || {};
+  const pendingItems = dashboardData?.data?.pendingItems || {};
 
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: "32px" }}>
         <Title level={2}>Admin Panel</Title>
-        <Text style={{ fontSize: '16px', color: '#666' }}>
+        <Text style={{ fontSize: "16px", color: "#666" }}>
           Monitor and manage the MicroHire platform
         </Text>
       </div>
 
       {/* Overview Stats */}
-      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
+      <Row gutter={[24, 24]} style={{ marginBottom: "32px" }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Total Users"
               value={stats.totalUsers || 0}
-              prefix={<UserOutlined style={{ color: '#DC143C' }} />}
-              valueStyle={{ color: '#DC143C' }}
+              prefix={<UserOutlined style={{ color: "#DC143C" }} />}
+              valueStyle={{ color: "#DC143C" }}
             />
           </Card>
         </Col>
@@ -349,18 +418,18 @@ const AdminPanel = () => {
             <Statistic
               title="Active Internships"
               value={stats.activeInternships || 0}
-              prefix={<FolderOutlined style={{ color: '#1E3A8A' }} />}
-              valueStyle={{ color: '#1E3A8A' }}
+              prefix={<FolderOutlined style={{ color: "#1E3A8A" }} />}
+              valueStyle={{ color: "#1E3A8A" }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Applications"
-              value={stats.totalApplications || 0}
-              prefix={<FileTextOutlined style={{ color: '#059669' }} />}
-              valueStyle={{ color: '#059669' }}
+              title="Total Internships"
+              value={stats.totalInternships || 0}
+              prefix={<FileTextOutlined style={{ color: "#059669" }} />}
+              valueStyle={{ color: "#059669" }}
             />
           </Card>
         </Col>
@@ -368,16 +437,18 @@ const AdminPanel = () => {
           <Card>
             <Statistic
               title="Pending Reports"
-              value={stats.pendingReports || 0}
-              prefix={<ExclamationCircleOutlined style={{ color: '#D97706' }} />}
-              valueStyle={{ color: '#D97706' }}
+              value={pendingItems.reports || 0}
+              prefix={
+                <ExclamationCircleOutlined style={{ color: "#D97706" }} />
+              }
+              valueStyle={{ color: "#D97706" }}
             />
           </Card>
         </Col>
       </Row>
 
       {/* System Health */}
-      <Card style={{ marginBottom: '32px' }}>
+      <Card style={{ marginBottom: "32px" }}>
         <Title level={4}>System Health</Title>
         <Row gutter={[24, 24]}>
           <Col xs={24} md={8}>
@@ -403,9 +474,9 @@ const AdminPanel = () => {
 
       {/* Main Content Tabs */}
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        <Tabs activeKey={activeTab} onChange={handleTabChange}>
           <TabPane tab="Users" key="users">
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: "16px" }}>
               <Row gutter={[16, 16]} align="middle">
                 <Col xs={24} md={8}>
                   <Input.Search
@@ -419,7 +490,7 @@ const AdminPanel = () => {
                 <Col xs={24} md={6}>
                   <Select
                     placeholder="Filter by status"
-                    style={{ width: '100%' }}
+                    style={{ width: "100%" }}
                     value={statusFilter}
                     onChange={setStatusFilter}
                     allowClear
@@ -440,21 +511,21 @@ const AdminPanel = () => {
 
             <Table
               columns={userColumns}
-              dataSource={usersData?.data?.users || []}
+              dataSource={usersData?.data?.data?.users || []}
               loading={usersLoading}
               rowKey="id"
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} users`
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} of ${total} users`,
               }}
             />
           </TabPane>
 
           <TabPane tab="Internships" key="internships">
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: "16px" }}>
               <Space>
                 <Button icon={<ReloadOutlined />}>Refresh</Button>
                 <Button icon={<DownloadOutlined />}>Export</Button>
@@ -463,15 +534,15 @@ const AdminPanel = () => {
 
             <Table
               columns={internshipColumns}
-              dataSource={internshipsData?.data?.internships || []}
+              dataSource={internshipsData?.data?.data?.internships || []}
               loading={internshipsLoading}
               rowKey="id"
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} internships`
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} of ${total} internships`,
               }}
             />
           </TabPane>
@@ -479,8 +550,8 @@ const AdminPanel = () => {
           <TabPane tab="Reports" key="reports">
             <List
               loading={reportsLoading}
-              dataSource={reportsData?.data?.reports || []}
-              locale={{ emptyText: 'No reports to review' }}
+              dataSource={reportsData?.data?.data?.reports || []}
+              locale={{ emptyText: "No reports to review" }}
               renderItem={(report) => (
                 <List.Item
                   actions={[
@@ -489,12 +560,12 @@ const AdminPanel = () => {
                     </Button>,
                     <Button key="dismiss" size="small">
                       Dismiss
-                    </Button>
+                    </Button>,
                   ]}
                 >
                   <List.Item.Meta
                     avatar={
-                      <Avatar style={{ backgroundColor: '#DC143C' }}>
+                      <Avatar style={{ backgroundColor: "#DC143C" }}>
                         {report.reporterName?.charAt(0)}
                       </Avatar>
                     }
@@ -503,15 +574,21 @@ const AdminPanel = () => {
                       <Space direction="vertical" size="small">
                         <Text>{report.description}</Text>
                         <Text type="secondary">
-                          Reported by {report.reporterName} • {dayjs(report.createdAt).fromNow()}
+                          Reported by {report.reporterName} •{" "}
+                          {dayjs(report.createdAt).fromNow()}
                         </Text>
                       </Space>
                     }
                   />
-                  <Tag color={
-                    report.priority === 'high' ? 'red' :
-                    report.priority === 'medium' ? 'orange' : 'blue'
-                  }>
+                  <Tag
+                    color={
+                      report.priority === "high"
+                        ? "red"
+                        : report.priority === "medium"
+                        ? "orange"
+                        : "blue"
+                    }
+                  >
                     {report.priority?.toUpperCase()}
                   </Tag>
                 </List.Item>
@@ -524,13 +601,13 @@ const AdminPanel = () => {
               message="System Settings"
               description="Configure platform-wide settings and preferences."
               type="info"
-              style={{ marginBottom: '24px' }}
+              style={{ marginBottom: "24px" }}
             />
-            
+
             <Row gutter={[24, 24]}>
               <Col xs={24} md={12}>
                 <Card size="small" title="Platform Settings">
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space direction="vertical" style={{ width: "100%" }}>
                     <div>
                       <Text strong>Registration:</Text>
                       <br />
@@ -551,7 +628,7 @@ const AdminPanel = () => {
               </Col>
               <Col xs={24} md={12}>
                 <Card size="small" title="Security Settings">
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space direction="vertical" style={{ width: "100%" }}>
                     <div>
                       <Text strong>Two-Factor Auth:</Text>
                       <br />
@@ -584,53 +661,57 @@ const AdminPanel = () => {
           <Button key="close" onClick={() => setUserModalVisible(false)}>
             Close
           </Button>,
-          selectedUser?.status === 'active' ? (
-            <Button 
-              key="ban" 
+          selectedUser?.status === "active" ? (
+            <Button
+              key="ban"
               danger
               onClick={() => {
-                handleBanUser(selectedUser.id)
-                setUserModalVisible(false)
+                handleBanUser(selectedUser.id);
+                setUserModalVisible(false);
               }}
             >
               Ban User
             </Button>
           ) : (
-            <Button 
-              key="unban" 
+            <Button
+              key="unban"
               type="primary"
               onClick={() => {
-                handleUnbanUser(selectedUser.id)
-                setUserModalVisible(false)
+                handleUnbanUser(selectedUser.id);
+                setUserModalVisible(false);
               }}
             >
               Unban User
             </Button>
-          )
+          ),
         ]}
         width={600}
       >
         {selectedUser && (
           <div>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <Avatar 
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <Avatar
                 size={80}
                 src={selectedUser.avatar}
-                style={{ backgroundColor: '#DC143C' }}
+                style={{ backgroundColor: "#DC143C" }}
               >
                 {selectedUser.fullName?.charAt(0)?.toUpperCase()}
               </Avatar>
-              <div style={{ marginTop: '12px' }}>
+              <div style={{ marginTop: "12px" }}>
                 <Title level={4} style={{ margin: 0 }}>
                   {selectedUser.fullName}
                 </Title>
                 <Text type="secondary">{selectedUser.email}</Text>
                 <br />
-                <Tag color={
-                  selectedUser.role === 'admin' ? 'red' : 
-                  selectedUser.role === 'business' ? 'blue' : 
-                  'green'
-                }>
+                <Tag
+                  color={
+                    selectedUser.role === "admin"
+                      ? "red"
+                      : selectedUser.role === "business"
+                      ? "blue"
+                      : "green"
+                  }
+                >
                   {selectedUser.role?.toUpperCase()}
                 </Tag>
               </div>
@@ -640,40 +721,57 @@ const AdminPanel = () => {
               <Col xs={24} sm={12}>
                 <Text strong>Status:</Text>
                 <br />
-                <Badge 
-                  status={selectedUser.status === 'active' ? 'success' : 'error'}
-                  text={selectedUser.status?.charAt(0)?.toUpperCase() + selectedUser.status?.slice(1)}
+                <Badge
+                  status={
+                    selectedUser.status === "active" ? "success" : "error"
+                  }
+                  text={
+                    selectedUser.status?.charAt(0)?.toUpperCase() +
+                    selectedUser.status?.slice(1)
+                  }
                 />
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Joined:</Text>
                 <br />
-                <Text>{dayjs(selectedUser.createdAt).format('MMMM DD, YYYY')}</Text>
+                <Text>
+                  {dayjs(selectedUser.createdAt).format("MMMM DD, YYYY")}
+                </Text>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Last Login:</Text>
                 <br />
                 <Text>
-                  {selectedUser.lastLogin ? 
-                    dayjs(selectedUser.lastLogin).fromNow() : 
-                    'Never'
-                  }
+                  {selectedUser.lastLogin
+                    ? dayjs(selectedUser.lastLogin).fromNow()
+                    : "Never"}
                 </Text>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Location:</Text>
                 <br />
-                <Text>{selectedUser.location || 'Not specified'}</Text>
+                <Text>{selectedUser.location || "Not specified"}</Text>
               </Col>
             </Row>
 
-            {selectedUser.role === 'business' && (
-              <div style={{ marginTop: '16px' }}>
+            {selectedUser.role === "business" && (
+              <div style={{ marginTop: "16px" }}>
                 <Text strong>Company Information:</Text>
-                <div style={{ marginTop: '8px', padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
-                  <Text>Company: {selectedUser.companyName || 'Not specified'}</Text>
+                <div
+                  style={{
+                    marginTop: "8px",
+                    padding: "12px",
+                    background: "#f8fafc",
+                    borderRadius: "6px",
+                  }}
+                >
+                  <Text>
+                    Company: {selectedUser.companyName || "Not specified"}
+                  </Text>
                   <br />
-                  <Text>Industry: {selectedUser.industry || 'Not specified'}</Text>
+                  <Text>
+                    Industry: {selectedUser.industry || "Not specified"}
+                  </Text>
                 </div>
               </div>
             )}
@@ -681,7 +779,7 @@ const AdminPanel = () => {
         )}
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default AdminPanel
+export default AdminPanel;

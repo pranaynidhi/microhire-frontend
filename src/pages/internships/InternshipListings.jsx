@@ -49,9 +49,12 @@ const InternshipListings = () => {
   const [savedInternships, setSavedInternships] = useState(new Set())
   const navigate = useNavigate()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['internships', searchParams],
-    queryFn: () => internshipAPI.searchInternships(searchParams)
+    queryFn: () => internshipAPI.searchInternships(searchParams),
+    onError: (error) => {
+      console.error('Internship search error:', error);
+    }
   })
 
   const handleSearch = (value) => {
@@ -87,6 +90,9 @@ const InternshipListings = () => {
   }
 
   if (isLoading) return <LoadingSpinner />
+
+  console.log('API Response:', data);
+  console.log('Error:', error);
 
   const internships = data?.data?.internships || []
 

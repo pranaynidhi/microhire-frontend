@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, BrowserRouter as Router } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, ConfigProvider } from 'antd'
 import { useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
@@ -39,14 +39,13 @@ import Settings from './pages/settings/Settings'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import BackendStatus from './components/common/BackendStatus'
-import NotificationDropdown from './components/common/NotificationDropdown'
 
 const { Content } = Layout
 
 function AppContent() {
   const { user, loading, token, backendConnected } = useAuth()
   const { connect, disconnect } = useSocket()
-  const { collapsed, mobileOpen, isMobile } = useSidebar()
+  const { collapsed, isMobile } = useSidebar()
 
   useEffect(() => {
     if (token && user && backendConnected) {
@@ -177,8 +176,6 @@ function AppContent() {
         </Layout>
       </Layout>
 
-      {/* Notification Dropdown */}
-      {isAuthenticated && <NotificationDropdown />}
     </Layout>
   )
 }

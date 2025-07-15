@@ -63,3 +63,5 @@ export const useSidebar = () => {
 SidebarProvider.propTypes = {
   children: PropTypes.node.isRequired
 } 
+
+export { SidebarProvider, useSidebar } 
