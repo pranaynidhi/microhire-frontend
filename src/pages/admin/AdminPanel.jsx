@@ -46,6 +46,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import toast from "react-hot-toast";
 import ReviewModerationModal from '../../components/common/ReviewModerationModal';
+import api from '../../services/api';
 
 dayjs.extend(relativeTime);
 
