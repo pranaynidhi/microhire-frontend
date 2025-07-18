@@ -259,16 +259,39 @@ const AdminPanel = () => {
     },
   });
 
+  // Add loading state for report actions
+  const [reportActionLoading, setReportActionLoading] = useState({});
+
+  // Handle Dismiss Report
   const handleDismissReport = async (reportId) => {
-    // TODO: Call backend endpoint to dismiss report
-    toast.success('Report dismissed (stub)');
-    // Optionally refetch reports
-    queryClient.invalidateQueries(["admin-reports"]);
+    setReportActionLoading((prev) => ({ ...prev, [reportId]: true }));
+    try {
+      if (adminAPI.dismissReport) {
+        await adminAPI.dismissReport(reportId);
+        toast.success('Report dismissed');
+      } else {
+        toast.error('Dismiss endpoint not implemented');
+      }
+      queryClient.invalidateQueries(["admin-reports"]);
+    } catch (err) {
+      toast.error('Failed to dismiss report');
+    } finally {
+      setReportActionLoading((prev) => ({ ...prev, [reportId]: false }));
+    }
   };
+
+  // Handle Resolve Report
   const handleResolveReport = async (reportId) => {
-    // TODO: Call backend endpoint to resolve report
-    toast.success('Report resolved (stub)');
-    queryClient.invalidateQueries(["admin-reports"]);
+    setReportActionLoading((prev) => ({ ...prev, [reportId]: true }));
+    try {
+      await adminAPI.resolveReport(reportId);
+      toast.success('Report resolved');
+      queryClient.invalidateQueries(["admin-reports"]);
+    } catch (err) {
+      toast.error('Failed to resolve report');
+    } finally {
+      setReportActionLoading((prev) => ({ ...prev, [reportId]: false }));
+    }
   };
 
   const handleBanUser = (userId) => {
@@ -695,10 +718,10 @@ const AdminPanel = () => {
                     <Button key="view" type="link" onClick={() => handleViewTarget(report)}>
                       View Target
                     </Button>,
-                    <Button key="resolve" type="primary" size="small" onClick={() => handleResolveReport(report.id)}>
+                    <Button key="resolve" type="primary" size="small" loading={!!reportActionLoading[report.id]} onClick={() => handleResolveReport(report.id)}>
                       Resolve
                     </Button>,
-                    <Button key="dismiss" size="small" onClick={() => handleDismissReport(report.id)}>
+                    <Button key="dismiss" size="small" loading={!!reportActionLoading[report.id]} onClick={() => handleDismissReport(report.id)}>
                       Dismiss
                     </Button>,
                   ]}
