@@ -3,11 +3,36 @@ import { FlagOutlined, UserOutlined } from '@ant-design/icons'
 import PropTypes from 'prop-types'
 import { useAuth } from '../../contexts/AuthContextUtils'
 import dayjs from 'dayjs'
+import { useState } from 'react';
+import ReviewModerationModal from './ReviewModerationModal';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 const { Text, Paragraph } = Typography
 
 const ReviewList = ({ reviews, entityType, entityId, onReportSuccess, onReport }) => {
-  const { user } = useAuth()
+  const { user } = useAuth();
+  const [reportModal, setReportModal] = useState({ open: false, review: null });
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const openReportModal = (review) => {
+    setReportModal({ open: true, review });
+  };
+  const closeReportModal = () => setReportModal({ open: false, review: null });
+
+  const handleReport = async () => {
+    setReportLoading(true);
+    try {
+      await api.post(`/reviews/${reportModal.review.id}/report`, { reason: 'Inappropriate or spam' });
+      toast.success('Review reported');
+      closeReportModal();
+      if (typeof onReportSuccess === 'function') onReportSuccess();
+    } catch (error) {
+      toast.error('Failed to report review');
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -16,13 +41,13 @@ const ReviewList = ({ reviews, entityType, entityId, onReportSuccess, onReport }
         renderItem={review => (
           <List.Item
             actions={
-              user?.id !== review.userId && onReport
+              user && user.id !== review.userId && user.role !== 'admin'
                 ? [
                     <Button
                       key="report"
                       type="text"
                       icon={<FlagOutlined style={{ color: '#DC143C' }} />}
-                      onClick={() => onReport(review)}
+                      onClick={() => openReportModal(review)}
                     >
                       Report
                     </Button>
@@ -48,8 +73,16 @@ const ReviewList = ({ reviews, entityType, entityId, onReportSuccess, onReport }
         )}
         locale={{ emptyText: 'No reviews yet' }}
       />
+      <ReviewModerationModal
+        open={reportModal.open}
+        onClose={closeReportModal}
+        review={reportModal.review}
+        mode="report"
+        onReport={handleReport}
+        loading={reportLoading}
+      />
     </div>
-  )
+  );
 }
 
 ReviewList.propTypes = {
