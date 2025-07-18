@@ -30,7 +30,8 @@ import {
   CalendarOutlined,
   BookOutlined,
   TrophyOutlined,
-  FolderOutlined
+  FolderOutlined,
+  ShareAltOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextUtils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -56,6 +57,9 @@ const Profile = () => {
   const [reviewModal, setReviewModal] = useState({ open: false, mode: 'report', review: null })
   const [reviewLoading, setReviewLoading] = useState(false)
 
+  // Certificate sharing state
+  const [shareLoading, setShareLoading] = useState({});
+
   // Handler to open modal for reporting
   const openReviewModal = (review) => {
     setReviewModal({ open: true, mode: 'report', review })
@@ -75,6 +79,26 @@ const Profile = () => {
       toast.error(err.response?.data?.message || 'Failed to report review')
     } finally {
       setReviewLoading(false)
+    }
+  }
+
+  // Share certificate handler
+  const handleShareCertificate = async (certId) => {
+    setShareLoading((prev) => ({ ...prev, [certId]: true }))
+    try {
+      const res = await certificateAPI.generateShareLink(certId)
+      const link = res.data?.data?.shareLink || res.data?.shareLink
+      if (link) {
+        await navigator.clipboard.writeText(link)
+        toast.success('Shareable link copied to clipboard!')
+        // Optionally, refetch analytics here if needed
+      } else {
+        toast.error('Failed to generate share link')
+      }
+    } catch (err) {
+      toast.error('Failed to share certificate')
+    } finally {
+      setShareLoading((prev) => ({ ...prev, [certId]: false }))
     }
   }
 
@@ -430,7 +454,10 @@ const Profile = () => {
                         }
                         actions={[
                           <Button key="view" type="text" icon={<EyeOutlined />}>View</Button>,
-                          <Button key="download" type="text" icon={<DownloadOutlined />}>Download</Button>
+                          <Button key="download" type="text" icon={<DownloadOutlined />}>Download</Button>,
+                          <Button key="share" type="text" icon={<ShareAltOutlined />} loading={!!shareLoading[cert.id]} onClick={() => handleShareCertificate(cert.id)}>
+                            Share
+                          </Button>
                         ]}
                       >
                         <Card.Meta
