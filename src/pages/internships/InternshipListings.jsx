@@ -30,6 +30,8 @@ import { useNavigate } from 'react-router-dom'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { searchAPI } from '../../services/api'
+import { useEffect } from 'react'
 
 dayjs.extend(relativeTime)
 
@@ -48,6 +50,12 @@ const InternshipListings = () => {
   })
   const [savedInternships, setSavedInternships] = useState(new Set())
   const navigate = useNavigate()
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [recommendations, setRecommendations] = useState([])
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false)
+  const [recommendationsError, setRecommendationsError] = useState(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['internships', searchParams],
@@ -56,6 +64,46 @@ const InternshipListings = () => {
       console.error('Internship search error:', error);
     }
   })
+
+  // Fetch recommendations when no search/filter is active
+  useEffect(() => {
+    if (!searchParams.search && !searchParams.location && !searchParams.type && !searchParams.category) {
+      setRecommendationsLoading(true)
+      setRecommendationsError(null)
+      searchAPI.getRecommendations()
+        .then(res => setRecommendations(res.data.data?.internships || []))
+        .catch(() => setRecommendationsError('Failed to load recommendations'))
+        .finally(() => setRecommendationsLoading(false))
+    } else {
+      setRecommendations([])
+    }
+  }, [searchParams.search, searchParams.location, searchParams.type, searchParams.category])
+
+  // Fetch suggestions as user types
+  const handleSearchInputChange = async (e) => {
+    const value = e.target.value
+    setSearchParams(prev => ({ ...prev, search: value }))
+    if (value.length > 1) {
+      setSuggestionsLoading(true)
+      setShowSuggestions(true)
+      try {
+        const res = await searchAPI.getSearchSuggestions({ query: value })
+        setSuggestions(res.data.data?.suggestions || [])
+      } catch {
+        setSuggestions([])
+      } finally {
+        setSuggestionsLoading(false)
+      }
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearchParams(prev => ({ ...prev, search: suggestion, page: 1 }))
+    setShowSuggestions(false)
+  }
 
   const handleSearch = (value) => {
     setSearchParams(prev => ({ ...prev, search: value, page: 1 }))
@@ -100,6 +148,68 @@ const InternshipListings = () => {
 
   return (
     <div>
+      {/* Recommendations */}
+      {recommendationsLoading ? (
+        <Card style={{ marginBottom: '24px' }}><LoadingSpinner size="small" /></Card>
+      ) : recommendations.length > 0 && (
+        <Card title="Recommended Internships" style={{ marginBottom: '24px' }}>
+          <Row gutter={[24, 24]}>
+            {recommendations.map((internship) => {
+              const companyName = internship.company?.companyName || 'Unknown Company';
+              const companyLogo = internship.company?.logoUrl;
+              const skills = Array.isArray(internship.skills) ? internship.skills : [];
+              return (
+                <Col xs={24} lg={12} xl={8} key={internship.id}>
+                  <Card
+                    hoverable
+                    style={{ height: '100%' }}
+                    actions={[
+                      <Button
+                        key="apply"
+                        type="primary"
+                        onClick={() => navigate(`/internships/${internship.id}`)}
+                      >
+                        View Details
+                      </Button>
+                    ]}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+                      <Avatar 
+                        size={48}
+                        src={companyLogo}
+                        style={{ backgroundColor: '#DC143C' }}
+                      >
+                        {companyName.charAt(0)}
+                      </Avatar>
+                      <div style={{ flex: 1 }}>
+                        <Title level={5} style={{ margin: 0, marginBottom: '4px' }}>
+                          {internship.title}
+                        </Title>
+                        <Text strong style={{ color: '#DC143C' }}>
+                          {companyName}
+                        </Text>
+                      </div>
+                    </div>
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <EnvironmentOutlined style={{ color: '#666' }} />
+                        <Text type="secondary">{internship.location}</Text>
+                        <Tag color="blue">{internship.type}</Tag>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <DollarOutlined style={{ color: '#666' }} />
+                        <Text type="secondary">
+                          NPR {Number(internship.stipend).toLocaleString()} /month
+                        </Text>
+                      </div>
+                    </Space>
+                  </Card>
+                </Col>
+              )
+            })}
+          </Row>
+        </Card>
+      )}
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <Title level={2}>Find Your Perfect Internship</Title>
@@ -109,17 +219,48 @@ const InternshipListings = () => {
       </div>
 
       {/* Search and Filters */}
-      <Card style={{ marginBottom: '24px' }}>
+      <Card style={{ marginBottom: '24px', position: 'relative' }}>
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={8}>
+          <Col xs={24} md={8} style={{ position: 'relative' }}>
             <Input.Search
               placeholder="Search internships..."
               prefix={<SearchOutlined />}
               onSearch={handleSearch}
               value={searchParams.search}
-              onChange={(e) => setSearchParams(prev => ({ ...prev, search: e.target.value }))}
+              onChange={handleSearchInputChange}
               size="large"
+              onFocus={() => searchParams.search && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              autoComplete="off"
             />
+            {/* Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 48,
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                zIndex: 10,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+              }}>
+                {suggestionsLoading ? (
+                  <div style={{ padding: '12px', textAlign: 'center' }}>Loading...</div>
+                ) : (
+                  suggestions.map((s, idx) => (
+                    <div
+                      key={idx}
+                      style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: idx !== suggestions.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+                      onMouseDown={() => handleSuggestionClick(s)}
+                    >
+                      {s}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </Col>
           <Col xs={24} sm={8} md={4}>
             <Select
