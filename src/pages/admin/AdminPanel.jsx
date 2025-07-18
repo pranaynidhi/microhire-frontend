@@ -45,6 +45,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import toast from "react-hot-toast";
+import ReviewModerationModal from '../../components/common/ReviewModerationModal';
 
 dayjs.extend(relativeTime);
 
@@ -416,6 +417,54 @@ const AdminPanel = () => {
     },
   ];
 
+  const reviewColumns = [
+    {
+      title: "Review",
+      dataIndex: "reviewText",
+      key: "reviewText",
+      render: (text, record) => (
+        <div>
+          <Text strong>{text}</Text>
+          <br />
+          <Text type="secondary">
+            By {record.reviewerName} on {dayjs(record.createdAt).fromNow()}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: "Rating",
+      dataIndex: "rating",
+      key: "rating",
+      render: (rating) => (
+        <Tag color="blue" style={{ fontSize: "14px" }}>
+          {rating} Stars
+        </Tag>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => (
+        <Tag
+          color={status === "approved" ? "green" : status === "rejected" ? "red" : "orange"}
+        >
+          {status?.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_, review) => (
+        <Button type="link" onClick={() => openModerationModal(review)}>
+          Moderate
+        </Button>
+      ),
+    },
+  ];
+
   if (dashboardLoading) {
     return <LoadingSpinner />;
   }
@@ -659,6 +708,16 @@ const AdminPanel = () => {
                   Cancel
                 </Button>
               ]}
+            />
+            <ReviewModerationModal
+              open={moderationModal.open}
+              onClose={closeModerationModal}
+              review={moderationModal.review}
+              mode="moderate"
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onDelete={handleDelete}
+              loading={moderationLoading}
             />
           </TabPane>
 
