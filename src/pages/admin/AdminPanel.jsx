@@ -765,50 +765,36 @@ const AdminPanel = () => {
               style={{ marginBottom: "24px" }}
             />
 
-            <Row gutter={[24, 24]}>
-              <Col xs={24} md={12}>
-                <Card size="small" title="Platform Settings">
-                  <Space direction="vertical" style={{ width: "100%" }}>
-                    <div>
-                      <Text strong>Registration:</Text>
-                      <br />
-                      <Text>Open to all users</Text>
-                    </div>
-                    <div>
-                      <Text strong>Email Verification:</Text>
-                      <br />
-                      <Text>Required</Text>
-                    </div>
-                    <div>
-                      <Text strong>Maintenance Mode:</Text>
-                      <br />
-                      <Text>Disabled</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-              <Col xs={24} md={12}>
-                <Card size="small" title="Security Settings">
-                  <Space direction="vertical" style={{ width: "100%" }}>
-                    <div>
-                      <Text strong>Two-Factor Auth:</Text>
-                      <br />
-                      <Text>Optional</Text>
-                    </div>
-                    <div>
-                      <Text strong>Session Timeout:</Text>
-                      <br />
-                      <Text>24 hours</Text>
-                    </div>
-                    <div>
-                      <Text strong>Password Policy:</Text>
-                      <br />
-                      <Text>Minimum 6 characters</Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
+            <Card>
+              <Form
+                form={settingsForm}
+                layout="vertical"
+                initialValues={settings}
+                onFinish={handleSettingsUpdate}
+              >
+                {settings && Object.entries(settings).map(([key, value]) => (
+                  <Form.Item
+                    key={key}
+                    label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    name={key}
+                    valuePropName={typeof value === 'boolean' ? 'checked' : 'value'}
+                  >
+                    {typeof value === 'boolean' ? (
+                      <Switch />
+                    ) : typeof value === 'number' ? (
+                      <Input type="number" />
+                    ) : (
+                      <Input />
+                    )}
+                  </Form.Item>
+                ))}
+                <Form.Item>
+                  <Button type="primary" htmlType="submit" loading={settingsLoading}>
+                    Save Settings
+                  </Button>
+                </Form.Item>
+              </Form>
+            </Card>
           </TabPane>
         </Tabs>
       </Card>
