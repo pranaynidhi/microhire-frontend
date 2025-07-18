@@ -62,18 +62,18 @@ const Analytics = () => {
     queryKey: ['analytics', user?.role, dateRange],
     queryFn: () => {
       if (user?.role === 'business') {
-        return analyticsAPI.getCompanyAnalytics()
+        return analyticsAPI.getCompanyAnalytics().then(res => res.data)
       } else if (user?.role === 'admin') {
-        return analyticsAPI.getPlatformAnalytics()
+        return analyticsAPI.getPlatformAnalytics().then(res => res.data)
       } else {
-        return analyticsAPI.getUserAnalytics()
+        return analyticsAPI.getUserAnalytics().then(res => res.data)
       }
     }
   })
 
   if (isLoading) return <LoadingSpinner />
 
-  const analytics = analyticsData?.data || {}
+  const analytics = analyticsData || {}
 
   // Sample data for charts
   const applicationTrends = [

@@ -39,6 +39,8 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminAPI } from "../../services/api";
+import { reviewAPI } from '../../services/api'
+import ReviewModal from '../../components/common/ReviewModal'
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -60,6 +62,51 @@ const AdminPanel = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const queryClient = useQueryClient();
+
+  // Review modal state for reporting/moderation
+  const [reviewModal, setReviewModal] = useState({ open: false, mode: 'report', review: null })
+  const [reviewLoading, setReviewLoading] = useState(false)
+
+  // Handler to open modal for reporting/moderating a review
+  const openReviewModal = (review) => {
+    setReviewModal({ open: true, mode: 'report', review })
+  }
+  const closeReviewModal = () => setReviewModal({ open: false, mode: 'report', review: null })
+
+  // Handle review report submit
+  const handleReviewSubmit = async (values) => {
+    setReviewLoading(true)
+    try {
+      await reviewAPI.reportReview(reviewModal.review.id, { reason: values.reason })
+      toast.success('Review reported!')
+      closeReviewModal()
+      queryClient.invalidateQueries(["admin-reports"])
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to report review')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
+  // Handle review moderation actions
+  const handleModerateReview = async (action) => {
+    setReviewLoading(true)
+    try {
+      if (action === 'delete') {
+        await reviewAPI.deleteReview(reviewModal.review.id)
+        toast.success('Review deleted!')
+      } else {
+        await reviewAPI.moderateReview(reviewModal.review.id, { action })
+        toast.success(`Review ${action === 'approve' ? 'approved' : 'rejected'}!`)
+      }
+      closeReviewModal()
+      queryClient.invalidateQueries(["admin-reports"])
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to moderate review')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
 
   // Update URL when tab changes
   const handleTabChange = (key) => {
@@ -85,7 +132,7 @@ const AdminPanel = () => {
     error: dashboardError,
   } = useQuery({
     queryKey: ["admin-dashboard"],
-    queryFn: adminAPI.getDashboard,
+    queryFn: () => adminAPI.getDashboard().then(res => res.data),
     onError: (error) => {
       console.error("Dashboard API Error:", error);
       console.error("Dashboard Error Response:", error.response?.data);
@@ -100,7 +147,7 @@ const AdminPanel = () => {
   } = useQuery({
     queryKey: ["admin-users", searchTerm, statusFilter],
     queryFn: () =>
-      adminAPI.getUsers({ search: searchTerm, status: statusFilter }),
+      adminAPI.getUsers({ search: searchTerm, status: statusFilter }).then(res => res.data),
     onError: (error) => {
       console.error("Users API Error:", error);
       console.error("Users Error Response:", error.response?.data);
@@ -114,7 +161,7 @@ const AdminPanel = () => {
     error: internshipsError,
   } = useQuery({
     queryKey: ["admin-internships"],
-    queryFn: () => adminAPI.getInternships(),
+    queryFn: () => adminAPI.getInternships().then(res => res.data),
     onError: (error) => {
       console.error("Internships API Error:", error);
       console.error("Internships Error Response:", error.response?.data);
@@ -128,7 +175,7 @@ const AdminPanel = () => {
     error: reportsError,
   } = useQuery({
     queryKey: ["admin-reports"],
-    queryFn: () => adminAPI.getReports(),
+    queryFn: () => adminAPI.getReports().then(res => res.data),
     onError: (error) => {
       console.error("Reports API Error:", error);
       console.error("Reports Error Response:", error.response?.data);
@@ -373,23 +420,14 @@ const AdminPanel = () => {
     return <LoadingSpinner />;
   }
 
-  // Debug logging
-  console.log("Dashboard Data:", dashboardData);
-  console.log("Users Data:", usersData);
-  console.log("Users Array:", usersData?.data?.data?.users);
-  console.log("Internships Data:", internshipsData);
-  console.log("Internships Array:", internshipsData?.data?.data?.internships);
-  console.log("Reports Data:", reportsData);
-  console.log("Reports Array:", reportsData?.data?.data?.reports);
-
   // Log any errors
   if (dashboardError) console.error("Dashboard Error:", dashboardError);
   if (usersError) console.error("Users Error:", usersError);
   if (internshipsError) console.error("Internships Error:", internshipsError);
   if (reportsError) console.error("Reports Error:", reportsError);
 
-  const stats = dashboardData?.data?.systemHealth || {};
-  const pendingItems = dashboardData?.data?.pendingItems || {};
+  const stats = dashboardData?.systemHealth || {};
+  const pendingItems = dashboardData?.pendingItems || {};
 
   return (
     <div>
@@ -511,7 +549,7 @@ const AdminPanel = () => {
 
             <Table
               columns={userColumns}
-              dataSource={usersData?.data?.data?.users || []}
+              dataSource={usersData?.users || []}
               loading={usersLoading}
               rowKey="id"
               pagination={{
@@ -534,7 +572,7 @@ const AdminPanel = () => {
 
             <Table
               columns={internshipColumns}
-              dataSource={internshipsData?.data?.data?.internships || []}
+              dataSource={internshipsData?.internships || []}
               loading={internshipsLoading}
               rowKey="id"
               pagination={{
@@ -550,12 +588,18 @@ const AdminPanel = () => {
           <TabPane tab="Reports" key="reports">
             <List
               loading={reportsLoading}
-              dataSource={reportsData?.data?.data?.reports || []}
+              dataSource={reportsData?.reports || []}
               locale={{ emptyText: "No reports to review" }}
               renderItem={(report) => (
                 <List.Item
                   actions={[
-                    <Button key="review" type="primary" size="small">
+                    <Button key="review" type="primary" size="small" onClick={() => {
+                      if (report.type === 'review' && report.review) {
+                        openReviewModal(report.review)
+                      } else {
+                        toast.info('Only review reports can be handled here for now.')
+                      }
+                    }}>
                       Review
                     </Button>,
                     <Button key="dismiss" size="small">
@@ -593,6 +637,28 @@ const AdminPanel = () => {
                   </Tag>
                 </List.Item>
               )}
+            />
+            <ReviewModal
+              open={reviewModal.open}
+              onCancel={closeReviewModal}
+              onSubmit={handleReviewSubmit}
+              mode={reviewModal.mode}
+              initialValues={{ reason: '' }}
+              loading={reviewLoading}
+              actions={[
+                <Button key="approve" type="primary" loading={reviewLoading} onClick={() => handleModerateReview('approve')}>
+                  Approve
+                </Button>,
+                <Button key="reject" danger loading={reviewLoading} onClick={() => handleModerateReview('reject')}>
+                  Reject
+                </Button>,
+                <Button key="delete" type="default" loading={reviewLoading} onClick={() => handleModerateReview('delete')}>
+                  Delete
+                </Button>,
+                <Button key="cancel" onClick={closeReviewModal}>
+                  Cancel
+                </Button>
+              ]}
             />
           </TabPane>
 

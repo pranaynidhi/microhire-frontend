@@ -37,26 +37,82 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Chart from "react-apexcharts";
-
-dayjs.extend(relativeTime);
+import { useState } from 'react'
+import { reviewAPI } from '../../services/api'
+import ReviewModal from '../../components/common/ReviewModal'
+import { useAuth } from '../../contexts/AuthContextUtils'
+import ReviewList from '../../components/common/ReviewList'
 
 const { Title, Text, Paragraph } = Typography;
 
+dayjs.extend(relativeTime);
+
+const getStatusIcon = (status) => {
+  const icons = {
+    pending: <ClockCircleOutlined />,
+    interviewing: <UserOutlined />,
+    accepted: <CheckCircleOutlined />,
+    rejected: <CloseCircleOutlined />,
+  };
+  return icons[status] || <ClockCircleOutlined />;
+};
+
+const getStatusColor = (status) => {
+  const colors = {
+    pending: "orange",
+    interviewing: "blue",
+    accepted: "green",
+    rejected: "red",
+  };
+  return colors[status] || "gray";
+};
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Review modal state for reporting
+  const [reviewModal, setReviewModal] = useState({ open: false, mode: 'report', review: null })
+  const [reviewLoading, setReviewLoading] = useState(false)
 
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["student-dashboard-stats"],
-    queryFn: analyticsAPI.getDashboardStats,
+    queryFn: () => analyticsAPI.getDashboardStats().then(res => res.data),
   });
 
   // Fetch recent internships
   const { data: recentInternships, isLoading: internshipsLoading } = useQuery({
     queryKey: ["recent-internships-student"],
     queryFn: () =>
-      internshipAPI.getInternships({ limit: 6, sort: "-createdAt" }),
+      internshipAPI.getInternships({ limit: 6, sort: "-createdAt" }).then(res => res.data),
   });
+
+  const { data: userReviews, refetch: refetchUserReviews } = useQuery({
+    queryKey: ['student-dashboard-user-reviews', user?.id],
+    queryFn: () => user?.id ? reviewAPI.getUserReviews(user.id).then(res => res.data) : Promise.resolve({ reviews: [] }),
+    enabled: !!user?.id
+  })
+
+  // Handler to open modal for reporting a review
+  const openReviewModal = (review) => {
+    setReviewModal({ open: true, mode: 'report', review })
+  }
+  const closeReviewModal = () => setReviewModal({ open: false, mode: 'report', review: null })
+
+  // Handle review report submit
+  const handleReviewSubmit = async (values) => {
+    setReviewLoading(true)
+    try {
+      await reviewAPI.reportReview(reviewModal.review.id, { reason: values.reason }).then(res => res.data)
+      // Optionally refetch reviews if displayed
+      closeReviewModal()
+    } catch (err) {
+      // Optionally show error toast
+    } finally {
+      setReviewLoading(false)
+    }
+  }
 
   if (statsLoading) return <LoadingSpinner />;
 
@@ -120,13 +176,10 @@ const StudentDashboard = () => {
       dataIndex: "status",
       key: "status",
       render: (status) => {
-        const statusConfig = {
-          pending: { color: "orange", icon: <ClockCircleOutlined /> },
-          interviewing: { color: "blue", icon: <UserOutlined /> },
-          accepted: { color: "green", icon: <CheckCircleOutlined /> },
-          rejected: { color: "red", icon: <CloseCircleOutlined /> },
+        const config = {
+          color: getStatusColor(status),
+          icon: getStatusIcon(status),
         };
-        const config = statusConfig[status] || { color: "default", icon: null };
         return (
           <Tag color={config.color} icon={config.icon}>
             {status.toUpperCase()}
@@ -139,9 +192,7 @@ const StudentDashboard = () => {
       dataIndex: "createdAt",
       key: "createdAt",
       render: (date) => (
-        <Tooltip title={dayjs(date).format("MMMM DD, YYYY HH:mm")}>
-          {dayjs(date).fromNow()}
-        </Tooltip>
+        <Tooltip title={dayjs(date).format("MMMM DD, YYYY HH:mm")}> {dayjs(date).fromNow()} </Tooltip>
       ),
     },
     {
@@ -175,26 +226,6 @@ const StudentDashboard = () => {
       </div>
     ),
   }));
-
-  function getStatusIcon(status) {
-    const icons = {
-      pending: <ClockCircleOutlined />,
-      interviewing: <UserOutlined />,
-      accepted: <CheckCircleOutlined />,
-      rejected: <CloseCircleOutlined />,
-    };
-    return icons[status] || <ClockCircleOutlined />;
-  }
-
-  function getStatusColor(status) {
-    const colors = {
-      pending: "orange",
-      interviewing: "blue",
-      accepted: "green",
-      rejected: "red",
-    };
-    return colors[status] || "gray";
-  }
 
   return (
     <div style={{ padding: "0" }}>
@@ -392,7 +423,7 @@ const StudentDashboard = () => {
               <LoadingSpinner size="small" />
             ) : (
               <Row gutter={[16, 16]}>
-                {recentInternships?.data?.internships
+                {recentInternships?.internships
                   ?.slice(0, 3)
                   .map((internship) => (
                     <Col xs={24} md={8} key={internship.id}>
@@ -437,12 +468,26 @@ const StudentDashboard = () => {
               </Row>
             )}
             {!internshipsLoading &&
-              !recentInternships?.data?.internships?.length && (
+              !recentInternships?.internships?.length && (
                 <Empty description="No internships available" />
               )}
           </Card>
         </Col>
       </Row>
+      {/* My Reviews Section */}
+      <Row style={{ marginTop: 32 }}>
+        <Col span={24}>
+          <Card title="My Reviews">
+            <ReviewList
+              reviews={userReviews?.reviews || []}
+              entityType="user"
+              entityId={user?.id}
+              onReport={openReviewModal}
+            />
+          </Card>
+        </Col>
+      </Row>
+      <ReviewModal open={reviewModal.open} onCancel={closeReviewModal} onSubmit={handleReviewSubmit} mode={reviewModal.mode} initialValues={{ reason: '' }} loading={reviewLoading} />
     </div>
   );
 };

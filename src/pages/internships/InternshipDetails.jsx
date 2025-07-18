@@ -31,6 +31,9 @@ import { internshipAPI, applicationAPI } from '../../services/api'
 import { useAuth } from '../../contexts/AuthContextUtils'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import dayjs from 'dayjs'
+import { reviewAPI } from '../../services/api'
+import ReviewList from '../../components/common/ReviewList'
+import ReviewModal from '../../components/common/ReviewModal'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -45,6 +48,8 @@ const InternshipDetails = () => {
   const [applicationModalVisible, setApplicationModalVisible] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState(null)
   const [applyModalVisible, setApplyModalVisible] = useState(false)
+  const [reviewModal, setReviewModal] = useState({ open: false, mode: 'add', review: null })
+  const [reviewLoading, setReviewLoading] = useState(false)
 
   const { data: internship, isLoading, error } = useQuery({
     queryKey: ['internship', id],
@@ -55,6 +60,13 @@ const InternshipDetails = () => {
   const { data: applications } = useQuery({
     queryKey: ['applications', id],
     queryFn: () => applicationAPI.getApplicationsByInternshipId(id)
+  })
+
+  // Fetch internship reviews
+  const { data: internshipReviews, isLoading: reviewsLoading, refetch: refetchReviews } = useQuery({
+    queryKey: ['internship-reviews', id],
+    queryFn: () => reviewAPI.getInternshipReviews(id),
+    enabled: !!id
   })
 
   const applyMutation = useMutation({
@@ -99,6 +111,46 @@ const InternshipDetails = () => {
       coverLetter: values.coverLetter
     }
     applyMutation.mutate(applicationData)
+  }
+
+  // Find user's own review if exists
+  const userReview = internshipReviews?.data?.reviews?.find(r => r.userId === user?.id)
+
+  // Handler to open modal for add/edit/report
+  const openReviewModal = (mode, review = null) => {
+    setReviewModal({ open: true, mode, review })
+  }
+  const closeReviewModal = () => setReviewModal({ open: false, mode: 'add', review: null })
+
+  // Add/Edit/Report review submit handler
+  const handleReviewSubmit = async (values) => {
+    setReviewLoading(true)
+    try {
+      if (reviewModal.mode === 'add') {
+        await reviewAPI.createReview({
+          entityType: 'internship',
+          entityId: id,
+          rating: values.rating,
+          comment: values.comment
+        })
+        message.success('Review submitted!')
+      } else if (reviewModal.mode === 'edit') {
+        await reviewAPI.updateReview(reviewModal.review.id, {
+          rating: values.rating,
+          comment: values.comment
+        })
+        message.success('Review updated!')
+      } else if (reviewModal.mode === 'report') {
+        await reviewAPI.reportReview(reviewModal.review.id, { reason: values.reason })
+        message.success('Review reported!')
+      }
+      closeReviewModal()
+      refetchReviews()
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Action failed')
+    } finally {
+      setReviewLoading(false)
+    }
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -222,6 +274,47 @@ const InternshipDetails = () => {
                   <li key={index}>{benefit}</li>
                 ))}
               </ul>
+            </div>
+
+            {/* Reviews Section */}
+            <Divider />
+            <div>
+              <Title level={4}>Reviews</Title>
+              {/* Add/Edit Review Button for eligible students */}
+              {user?.role === 'student' && (
+                <div style={{ marginBottom: 16 }}>
+                  {userReview ? (
+                    <Button type="default" onClick={() => openReviewModal('edit', userReview)}>
+                      Edit Your Review
+                    </Button>
+                  ) : (
+                    <Button type="primary" onClick={() => openReviewModal('add')}>
+                      Write a Review
+                    </Button>
+                  )}
+                </div>
+              )}
+              <ReviewList
+                reviews={internshipReviews?.data?.reviews || []}
+                entityType="internship"
+                entityId={id}
+                onReportSuccess={refetchReviews}
+                onReport={review => openReviewModal('report', review)}
+              />
+              <ReviewModal
+                open={reviewModal.open}
+                onCancel={closeReviewModal}
+                onSubmit={handleReviewSubmit}
+                mode={reviewModal.mode}
+                initialValues={
+                  reviewModal.mode === 'edit' && reviewModal.review
+                    ? { rating: reviewModal.review.rating, comment: reviewModal.review.comment }
+                    : reviewModal.mode === 'report' && reviewModal.review
+                    ? { reason: '' }
+                    : { rating: 0, comment: '' }
+                }
+                loading={reviewLoading}
+              />
             </div>
 
             {user?.role === 'business' && user?.id === internshipData.companyId && (

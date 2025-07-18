@@ -54,7 +54,7 @@ const Applications = () => {
 
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications', filters],
-    queryFn: () => applicationAPI.getMyApplications()
+    queryFn: () => applicationAPI.getMyApplications().then(res => res.data)
   })
 
   const handleFilterChange = (key, value) => {
@@ -106,7 +106,7 @@ const Applications = () => {
     })
   }
 
-  const filteredApplications = applications?.data?.applications || []
+  const filteredApplications = applications?.applications || []
 
   const columns = [
     {
@@ -334,7 +334,7 @@ const Applications = () => {
           </Col>
           <Col xs={24} md={4}>
             <Text type="secondary">
-              Showing {filteredApplications.length} of {applications?.data?.applications.length} applications
+              Showing {filteredApplications.length} of {applications?.applications.length} applications
             </Text>
           </Col>
         </Row>
@@ -345,7 +345,7 @@ const Applications = () => {
         {filteredApplications.length === 0 ? (
           <Empty 
             description={
-              applications?.data?.applications.length === 0 
+              applications?.applications.length === 0 
                 ? user?.role === 'student' 
                   ? "You haven't applied to any internships yet"
                   : "No applications received yet"

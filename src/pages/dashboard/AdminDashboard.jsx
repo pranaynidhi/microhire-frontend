@@ -46,19 +46,19 @@ const AdminDashboard = () => {
   // Fetch admin dashboard data
   const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
     queryKey: ["admin-dashboard-overview"],
-    queryFn: adminAPI.getDashboard,
+    queryFn: () => adminAPI.getDashboard().then(res => res.data),
   });
 
   // Fetch analytics stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-dashboard-stats"],
-    queryFn: analyticsAPI.getDashboardStats,
+    queryFn: () => analyticsAPI.getDashboardStats().then(res => res.data),
   });
 
   if (dashboardLoading || statsLoading) return <LoadingSpinner />;
 
-  const adminData = dashboardData?.data || {};
-  const statsData = stats?.data || {};
+  const adminData = dashboardData || {};
+  const statsData = stats || {};
 
   const {
     pendingItems = {},

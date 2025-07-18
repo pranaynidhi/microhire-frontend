@@ -51,7 +51,7 @@ const InternshipListings = () => {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['internships', searchParams],
-    queryFn: () => internshipAPI.searchInternships(searchParams),
+    queryFn: () => internshipAPI.searchInternships(searchParams).then(res => res.data),
     onError: (error) => {
       console.error('Internship search error:', error);
     }
@@ -94,7 +94,7 @@ const InternshipListings = () => {
   console.log('API Response:', data);
   console.log('Error:', error);
 
-  const internships = data?.data?.internships || []
+  const internships = data?.internships || []
 
   console.log('Internships:', internships);
 
@@ -232,7 +232,7 @@ const InternshipListings = () => {
       {/* Results Summary */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text>
-          Showing <strong>{internships.length}</strong> of <strong>{data?.data?.total || 0}</strong> internships
+          Showing <strong>{internships.length}</strong> of <strong>{data?.total || 0}</strong> internships
         </Text>
         <Select defaultValue="newest" style={{ width: 120 }}>
           <Option value="newest">Newest</Option>
@@ -356,7 +356,7 @@ const InternshipListings = () => {
           <div style={{ textAlign: 'center', marginTop: '40px' }}>
             <Pagination
               current={searchParams.page}
-              total={data?.data?.pagination?.totalItems || 0}
+              total={data?.pagination?.totalItems || 0}
               pageSize={searchParams.limit}
               onChange={(page) => handleFilterChange('page', page)}
               showSizeChanger

@@ -37,6 +37,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userAPI, certificateAPI } from '../../services/api'
 import toast from 'react-hot-toast'
 import dayjs from 'dayjs'
+import { reviewAPI } from '../../services/api'
+import ReviewList from '../../components/common/ReviewList'
+import ReviewModal from '../../components/common/ReviewModal'
 
 const { Title, Text, Paragraph } = Typography
 const { Option } = Select
@@ -49,6 +52,32 @@ const Profile = () => {
   const { user, updateUser } = useAuth()
   const queryClient = useQueryClient()
 
+  // Review modal state
+  const [reviewModal, setReviewModal] = useState({ open: false, mode: 'report', review: null })
+  const [reviewLoading, setReviewLoading] = useState(false)
+
+  // Handler to open modal for reporting
+  const openReviewModal = (review) => {
+    setReviewModal({ open: true, mode: 'report', review })
+  }
+  const closeReviewModal = () => setReviewModal({ open: false, mode: 'report', review: null })
+
+  // Handle review report submit
+  const handleReviewSubmit = async (values) => {
+    setReviewLoading(true)
+    try {
+      await reviewAPI.reportReview(reviewModal.review.id, { reason: values.reason })
+      toast.success('Review reported!')
+      closeReviewModal()
+      refetchReviews()
+      refetchCompanyReviews && refetchCompanyReviews()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to report review')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
   // Fetch user profile data
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['user-profile'],
@@ -60,6 +89,20 @@ const Profile = () => {
     queryKey: ['user-certificates'],
     queryFn: certificateAPI.getCertificates,
     enabled: user?.role === 'student'
+  })
+
+  // Fetch user reviews
+  const { data: userReviews, isLoading: reviewsLoading, refetch: refetchReviews } = useQuery({
+    queryKey: ['user-reviews', profile?.id],
+    queryFn: () => profile?.id ? reviewAPI.getUserReviews(profile.id) : Promise.resolve({ data: [] }),
+    enabled: !!profile?.id
+  })
+
+  // Fetch company reviews (for business profile)
+  const { data: companyReviews, isLoading: companyReviewsLoading, refetch: refetchCompanyReviews } = useQuery({
+    queryKey: ['company-reviews', profile?.id],
+    queryFn: () => profile?.id ? reviewAPI.getCompanyReviews(profile.id) : Promise.resolve({ data: [] }),
+    enabled: !!profile?.id && profile?.role === 'business'
   })
 
   // Update profile mutation
@@ -362,41 +405,65 @@ const Profile = () => {
           <TabPane tab="Certificates" key="certificates">
             <Card title="Certificates">
               <Row gutter={[16, 16]}>
-                {certificates?.data?.certificates?.map((cert, index) => (
-                  <Col xs={24} sm={12} lg={8} key={index}>
-                    <Card
-                      size="small"
-                      cover={
-                        <div style={{
-                          height: '120px',
-                          background: 'linear-gradient(135deg, #DC143C 0%, #1E3A8A 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white'
-                        }}>
-                          <TrophyOutlined style={{ fontSize: '48px' }} />
-                        </div>
-                      }
-                      actions={[
-                        <Button key="view" type="text" icon={<EyeOutlined />}>View</Button>,
-                        <Button key="download" type="text" icon={<DownloadOutlined />}>Download</Button>
-                      ]}
-                    >
-                      <Card.Meta
-                        title={cert.internshipTitle}
-                        description={
-                          <Space direction="vertical" size="small">
-                            <Text>{cert.companyName}</Text>
-                            <Text type="secondary">
-                              {dayjs(cert.issueDate).format('MMM DD, YYYY')}
-                            </Text>
-                          </Space>
+                {certificates?.data?.certificates?.map((cert, index) => {
+                  // Fetch analytics for this certificate
+                  const { data: certAnalytics, isLoading: analyticsLoading } = useQuery({
+                    queryKey: ['certificate-analytics', cert.id],
+                    queryFn: () => certificateAPI.getCertificateAnalytics(cert.id),
+                    enabled: !!cert.id
+                  })
+                  return (
+                    <Col xs={24} sm={12} lg={8} key={index}>
+                      <Card
+                        size="small"
+                        cover={
+                          <div style={{
+                            height: '120px',
+                            background: 'linear-gradient(135deg, #DC143C 0%, #1E3A8A 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white'
+                          }}>
+                            <TrophyOutlined style={{ fontSize: '48px' }} />
+                          </div>
                         }
-                      />
-                    </Card>
-                  </Col>
-                )) || (
+                        actions={[
+                          <Button key="view" type="text" icon={<EyeOutlined />}>View</Button>,
+                          <Button key="download" type="text" icon={<DownloadOutlined />}>Download</Button>
+                        ]}
+                      >
+                        <Card.Meta
+                          title={cert.internshipTitle}
+                          description={
+                            <Space direction="vertical" size="small">
+                              <Text>{cert.companyName}</Text>
+                              <Text type="secondary">
+                                {dayjs(cert.issueDate).format('MMM DD, YYYY')}
+                              </Text>
+                              {/* Certificate Analytics */}
+                              <Divider style={{ margin: '8px 0' }} />
+                              <div>
+                                <Text strong>Analytics:</Text>
+                                {analyticsLoading ? (
+                                  <div style={{ fontSize: '12px', color: '#888' }}>Loading...</div>
+                                ) : certAnalytics?.data ? (
+                                  <Space size="large">
+                                    <span>Views: <Text strong>{certAnalytics.data.views}</Text></span>
+                                    <span>Downloads: <Text strong>{certAnalytics.data.downloads}</Text></span>
+                                    <span>Shares: <Text strong>{certAnalytics.data.shares}</Text></span>
+                                  </Space>
+                                ) : (
+                                  <div style={{ fontSize: '12px', color: '#888' }}>No analytics</div>
+                                )}
+                              </div>
+                            </Space>
+                          }
+                        />
+                      </Card>
+                    </Col>
+                  )
+                }) || (
                   <Col xs={24}>
                     <div style={{ textAlign: 'center', padding: '40px' }}>
                       <TrophyOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
@@ -407,6 +474,27 @@ const Profile = () => {
               </Row>
             </Card>
           </TabPane>
+          {profile?.id && (
+            <TabPane tab="Reviews" key="reviews">
+              <Card title="User Reviews">
+                <ReviewList
+                  reviews={userReviews?.data?.reviews || []}
+                  entityType="user"
+                  entityId={profile.id}
+                  onReportSuccess={refetchReviews}
+                  onReport={openReviewModal}
+                />
+                <ReviewModal
+                  open={reviewModal.open}
+                  onCancel={closeReviewModal}
+                  onSubmit={handleReviewSubmit}
+                  mode={reviewModal.mode}
+                  initialValues={{ reason: '' }}
+                  loading={reviewLoading}
+                />
+              </Card>
+            </TabPane>
+          )}
         </Tabs>
       </Col>
     </Row>
@@ -617,6 +705,27 @@ const Profile = () => {
               </Col>
             </Row>
           </TabPane>
+          {profile?.id && profile?.role === 'business' && (
+            <TabPane tab="Reviews" key="reviews">
+              <Card title="Company Reviews">
+                <ReviewList
+                  reviews={companyReviews?.data?.reviews || []}
+                  entityType="company"
+                  entityId={profile.id}
+                  onReportSuccess={refetchCompanyReviews}
+                  onReport={openReviewModal}
+                />
+                <ReviewModal
+                  open={reviewModal.open}
+                  onCancel={closeReviewModal}
+                  onSubmit={handleReviewSubmit}
+                  mode={reviewModal.mode}
+                  initialValues={{ reason: '' }}
+                  loading={reviewLoading}
+                />
+              </Card>
+            </TabPane>
+          )}
         </Tabs>
       </Col>
     </Row>

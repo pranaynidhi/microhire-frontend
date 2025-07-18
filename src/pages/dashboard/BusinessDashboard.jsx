@@ -36,6 +36,11 @@ import {
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useState } from 'react'
+import { reviewAPI } from '../../services/api'
+import ReviewModal from '../../components/common/ReviewModal'
+import ReviewList from '../../components/common/ReviewList'
+import { useAuth } from '../../contexts/AuthContextUtils'
 
 dayjs.extend(relativeTime);
 
@@ -43,18 +48,50 @@ const { Title, Text, Paragraph } = Typography;
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth()
 
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["business-dashboard-stats"],
-    queryFn: analyticsAPI.getDashboardStats,
+    queryFn: () => analyticsAPI.getDashboardStats().then(res => res.data),
   });
 
   // Fetch company's internships
   const { data: myInternships, isLoading: internshipsLoading } = useQuery({
     queryKey: ["my-internships-dashboard"],
-    queryFn: () => internshipAPI.getMyInternships(),
+    queryFn: () => internshipAPI.getMyInternships().then(res => res.data),
   });
+
+  // Fetch company reviews
+  const { data: companyReviews, refetch: refetchCompanyReviews } = useQuery({
+    queryKey: ['business-dashboard-company-reviews', user?.id],
+    queryFn: () => user?.id ? reviewAPI.getCompanyReviews(user.id).then(res => res.data) : Promise.resolve({ reviews: [] }),
+    enabled: !!user?.id
+  })
+
+  // Review modal state for reporting
+  const [reviewModal, setReviewModal] = useState({ open: false, mode: 'report', review: null })
+  const [reviewLoading, setReviewLoading] = useState(false)
+
+  // Handler to open modal for reporting a review
+  const openReviewModal = (review) => {
+    setReviewModal({ open: true, mode: 'report', review })
+  }
+  const closeReviewModal = () => setReviewModal({ open: false, mode: 'report', review: null })
+
+  // Handle review report submit
+  const handleReviewSubmit = async (values) => {
+    setReviewLoading(true)
+    try {
+      await reviewAPI.reportReview(reviewModal.review.id, { reason: values.reason })
+      // Optionally refetch reviews if displayed
+      closeReviewModal()
+    } catch (err) {
+      // Optionally show error toast
+    } finally {
+      setReviewLoading(false)
+    }
+  }
 
   if (statsLoading) return <LoadingSpinner />;
 
@@ -431,7 +468,7 @@ const BusinessDashboard = () => {
               <LoadingSpinner size="small" />
             ) : (
               <Row gutter={[16, 16]}>
-                {myInternships?.data?.internships
+                {myInternships?.internships
                   ?.slice(0, 3)
                   .map((internship) => (
                     <Col xs={24} md={8} key={internship.id}>
@@ -497,7 +534,7 @@ const BusinessDashboard = () => {
               </Row>
             )}
             {!internshipsLoading &&
-              !myInternships?.data?.internships?.length && (
+              !myInternships?.internships?.length && (
                 <Empty
                   description="No internships posted yet"
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -513,6 +550,20 @@ const BusinessDashboard = () => {
           </Card>
         </Col>
       </Row>
+      {/* Company Reviews Section */}
+      <Row style={{ marginTop: 32 }}>
+        <Col span={24}>
+          <Card title="Company Reviews">
+            <ReviewList
+              reviews={companyReviews?.reviews || []}
+              entityType="company"
+              entityId={user?.id}
+              onReport={openReviewModal}
+            />
+          </Card>
+        </Col>
+      </Row>
+      <ReviewModal open={reviewModal.open} onCancel={closeReviewModal} onSubmit={handleReviewSubmit} mode={reviewModal.mode} initialValues={{ reason: '' }} loading={reviewLoading} />
     </div>
   );
 };
