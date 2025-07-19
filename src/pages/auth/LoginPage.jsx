@@ -1,30 +1,48 @@
-import { useState } from "react";
-import { Form, Input, Button, Card, Typography, Space, Divider } from "antd";
+import { useState, useRef } from "react";
+import { Form, Input, Button, Card, Typography, Space, Divider, Modal } from "antd";
 import {
   UserOutlined,
   LockOutlined,
   GoogleOutlined,
   GithubOutlined,
+  ExclamationCircleOutlined
 } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContextUtils";
 import { motion } from "framer-motion";
+import TwoFactorVerify from "../../components/auth/TwoFactorVerify";
 
 const { Title, Text } = Typography;
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFAData, setTwoFAData] = useState({
+    email: '',
+    tempToken: ''
+  });
+  const formRef = useRef();
+  const { login, verify2FALogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
       const result = await login(values);
+      
+      if (result.twoFARequired) {
+        // Show 2FA verification modal
+        setTwoFAData({
+          email: result.email,
+          tempToken: result.tempToken
+        });
+        setShow2FAModal(true);
+        return;
+      }
+      
       if (result.success) {
         // Get user from context after successful login
-        const userData =
-          result.user || JSON.parse(localStorage.getItem("user"));
+        const userData = result.user || JSON.parse(localStorage.getItem("user"));
 
         // Redirect admin users to admin panel, others to dashboard
         if (userData?.role === "admin") {
@@ -33,11 +51,63 @@ const LoginPage = () => {
           navigate("/dashboard");
         }
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       // Error is handled by the login function
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handle2FASuccess = (result) => {
+    if (result.success) {
+      // Close 2FA modal
+      setShow2FAModal(false);
+      setTwoFAData({ email: '', tempToken: '' });
+      
+      // Get user from context after successful verification
+      const userData = result.user || JSON.parse(localStorage.getItem("user"));
+      
+      // Redirect based on user role
+      if (userData?.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  };
+  
+  const handle2FACancel = () => {
+    // Show confirmation before canceling 2FA
+    Modal.confirm({
+      title: 'Cancel Two-Factor Authentication',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Are you sure you want to cancel two-factor authentication? You will need to log in again.',
+      okText: 'Yes, cancel',
+      cancelText: 'No, continue',
+      onOk: () => {
+        setShow2FAModal(false);
+        setTwoFAData({ email: '', tempToken: '' });
+        // Reset form
+        if (formRef.current) {
+          formRef.current.resetFields();
+        }
+      }
+    });
+  };
+  
+  const handleRecoveryCodeClick = () => {
+    // This would typically navigate to a recovery page or show recovery options
+    Modal.info({
+      title: 'Recovery Options',
+      content: (
+        <div>
+          <p>If you've lost access to your authenticator app, you can use a recovery code.</p>
+          <p>Please enter your recovery code in the verification field.</p>
+        </div>
+      ),
+      okText: 'Got it',
+    });
   };
 
   return (
@@ -98,6 +168,7 @@ const LoginPage = () => {
             onFinish={handleSubmit}
             layout="vertical"
             size="large"
+            ref={formRef}
           >
             <Form.Item
               name="email"
@@ -199,6 +270,16 @@ const LoginPage = () => {
           </div>
         </Card>
       </motion.div>
+      
+      {/* 2FA Verification Modal */}
+      <TwoFactorVerify
+        visible={show2FAModal}
+        email={twoFAData.email}
+        onSuccess={handle2FASuccess}
+        onCancel={handle2FACancel}
+        onUseRecoveryCode={handleRecoveryCodeClick}
+        loading={loading}
+      />
     </div>
   );
 };

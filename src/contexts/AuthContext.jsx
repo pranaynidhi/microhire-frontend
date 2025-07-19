@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { authAPI, testConnection, fetchCsrfToken } from "../services/api";
+import { authAPI, twoFactorAPI, testConnection, fetchCsrfToken } from "../services/api";
 import toast from "react-hot-toast";
 import PropTypes from "prop-types";
 import { AuthContext } from "./AuthContextUtils";
@@ -66,18 +66,73 @@ export const AuthProvider = ({ children }) => {
     try {
       await fetchCsrfToken(); // Ensure CSRF token is set
       const response = await authAPI.login(credentials);
-      const { accessToken: newToken, user: userData } = response.data.data;
+      
+      // Check if 2FA is required
+      if (response.data?.data?.twoFARequired) {
+        return { 
+          success: true, 
+          twoFARequired: true,
+          tempToken: response.data.data.tempToken,
+          email: credentials.email
+        };
+      }
 
+      // Regular login flow
+      const { accessToken: newToken, user: userData } = response.data.data;
       localStorage.setItem("token", newToken);
       setToken(newToken);
       setUser(userData);
 
       toast.success(`Welcome back, ${userData.fullName}!`);
-      return { success: true, user: userData };
+      return { 
+        success: true, 
+        user: userData,
+        twoFARequired: false
+      };
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";
       toast.error(message);
-      return { success: false, error: message };
+      return { 
+        success: false, 
+        error: message,
+        twoFARequired: false
+      };
+    }
+  };
+
+  // Verify 2FA token during login
+  const verify2FALogin = async (email, token, isRecoveryCode = false) => {
+    try {
+      let response;
+      
+      if (isRecoveryCode) {
+        response = await twoFactorAPI.verifyRecoveryCode(email, token);
+      } else {
+        response = await twoFactorAPI.verifyLogin(email, token);
+      }
+      
+      if (response.data?.accessToken) {
+        const { accessToken: newToken, user: userData } = response.data;
+        
+        localStorage.setItem("token", newToken);
+        setToken(newToken);
+        setUser(userData);
+        
+        toast.success(`Welcome back, ${userData.fullName}!`);
+        return { 
+          success: true, 
+          user: userData 
+        };
+      }
+      
+      throw new Error('Invalid verification code');
+    } catch (error) {
+      const message = error.response?.data?.message || "Verification failed. Please try again.";
+      toast.error(message);
+      return { 
+        success: false, 
+        error: message 
+      };
     }
   };
 
@@ -160,6 +215,7 @@ export const AuthProvider = ({ children }) => {
     token,
     backendConnected,
     login,
+    verify2FALogin,
     register,
     logout,
     updateUser,

@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+// Base URL includes the /api prefix
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 // Create axios instance
@@ -107,6 +108,22 @@ export const testConnection = async () => {
   }
 }
 
+// 2FA API
+export const twoFactorAPI = {
+  // Start 2FA setup - get QR code and secret
+  setup2FA: withCsrf(() => api.get('/2fa/setup')),
+  // Verify 2FA setup with token from authenticator app
+  verify2FA: withCsrf((token) => api.post('/2fa/verify', { token })),
+  // Disable 2FA for the current user
+  disable2FA: withCsrf(() => api.post('/2fa/disable')),
+  // Verify 2FA token during login
+  verifyLogin: withCsrf((email, token) => api.post('/2fa/verify-login', { email, token })),
+  // Generate new recovery codes
+  generateRecoveryCodes: withCsrf(() => api.get('/2fa/recovery-codes')),
+  // Verify recovery code
+  verifyRecoveryCode: withCsrf((email, code) => api.post('/2fa/recover', { email, code })),
+};
+
 // Auth API
 export const authAPI = {
   login: withCsrf((credentials) => api.post('/auth/login', credentials)),
@@ -121,7 +138,7 @@ export const authAPI = {
   // OAuth endpoints
   googleAuth: () => api.get('/auth/oauth/google'),
   githubAuth: () => api.get('/auth/oauth/github'),
-  // 2FA endpoints
+  // 2FA endpoints (legacy, use twoFactorAPI instead)
   setup2FA: withCsrf(() => api.post('/auth/2fa/setup')),
   verify2FA: withCsrf((token) => api.post('/auth/2fa/verify', { token })),
 }
@@ -152,11 +169,11 @@ export const internshipAPI = {
   createInternship: withCsrf((data) => api.post('/internships', data)),
   updateInternship: withCsrf((id, data) => api.put(`/internships/${id}`, data)),
   deleteInternship: withCsrf((id) => api.delete(`/internships/${id}`)),
-  getMyInternships: () => api.get('/internships/my'),
+  getMyInternships: () => api.get('/internships/me'),
   searchInternships: (params) => api.get('/search/internships', { params }),
   advancedSearch: (params) => api.get('/search/advanced', { params }),
-  getSimilarInternships: (id) => api.get(`/internships/${id}/similar`),
-  getRecommendedInternships: () => api.get('/internships/recommended'),
+  getSimilarInternships: (id) => api.get(`/search/similar/${id}`),
+  getRecommendedInternships: () => api.get('/search/recommendations'),
   getInternshipApplications: (internshipId) => api.get(`/internships/${internshipId}/applications`),
   bookmarkInternship: withCsrf((id) => api.post(`/internships/${id}/bookmark`)),
   removeBookmark: withCsrf((id) => api.delete(`/internships/${id}/bookmark`)),
@@ -169,7 +186,7 @@ export const applicationAPI = {
   createApplication: withCsrf((data) => api.post('/applications', data)),
   updateApplication: withCsrf((id, data) => api.put(`/applications/${id}`, data)),
   withdrawApplication: withCsrf((id) => api.delete(`/applications/${id}`)),
-  getMyApplications: () => api.get('/applications/my'),
+  getMyApplications: () => api.get('/applications/me'),
   getInternshipApplications: (internshipId) => api.get(`/internships/${internshipId}/applications`),
   updateApplicationStatus: withCsrf((id, status) => api.patch(`/applications/${id}/status`, { status })),
   addFeedback: withCsrf((id, feedback) => api.post(`/applications/${id}/feedback`, feedback)),
@@ -178,13 +195,14 @@ export const applicationAPI = {
 
 // Message API
 export const messageAPI = {
-  getConversations: () => api.get('/messages/conversations'),
-  getMessages: (conversationId, params) => api.get(`/messages/conversations/${conversationId}`, { params }),
-  sendMessage: withCsrf((data) => api.post('/messages/conversations', data)),
-  markAsRead: withCsrf((conversationId) => api.patch(`/messages/conversations/${conversationId}/read`)),
-  deleteMessage: withCsrf((messageId) => api.delete(`/messages/${messageId}`)),
-  updateMessage: withCsrf((messageId, data) => api.put(`/messages/${messageId}`, data)),
-  deleteConversation: withCsrf((conversationId) => api.delete(`/messages/conversations/${conversationId}`)),
+  getConversations: () => api.get('/messaging/conversations'),
+  getMessages: (conversationId, params) => api.get(`/messaging/conversations/${conversationId}`, { params }),
+  sendMessage: withCsrf((data) => api.post('/messaging/conversations', data)),
+  markAsRead: withCsrf((conversationId) => api.patch(`/messaging/conversations/${conversationId}/read`)),
+  deleteMessage: withCsrf((messageId) => api.delete(`/messaging/${messageId}`)),
+  updateMessage: withCsrf((messageId, data) => api.put(`/messaging/${messageId}`, data)),
+  deleteConversation: withCsrf((conversationId) => api.delete(`/messaging/conversations/${conversationId}`)),
+  getUnreadCount: () => api.get('/messaging/unread-count'),
 }
 
 // Notification API
@@ -202,7 +220,7 @@ export const analyticsAPI = {
   getUserAnalytics: () => api.get('/analytics/user'),
   getCompanyAnalytics: () => api.get('/analytics/company'),
   getPlatformAnalytics: () => api.get('/analytics/platform'),
-  getInternshipAnalytics: (id) => api.get(`/analytics/internship/${id}`),
+  getInternshipAnalytics: (id) => api.get(`/analytics/internships/${id}`),
   getDashboardStats: () => api.get('/analytics/dashboard'),
 }
 
@@ -224,35 +242,19 @@ export const adminAPI = {
   deleteInternship: withCsrf((id) => api.delete(`/admin/internships/${id}`)),
   getSystemSettings: () => api.get('/admin/settings'),
   updateSystemSettings: withCsrf((settings) => api.put('/admin/settings', settings)),
-}
-
-// Review API
-export const reviewAPI = {
-  getReviews: (params) => api.get('/reviews', { params }),
-  getReviewById: (id) => api.get(`/reviews/${id}`),
-  createReview: withCsrf((data) => api.post('/reviews', data)),
-  updateReview: withCsrf((id, data) => api.put(`/reviews/${id}`, data)),
-  deleteReview: withCsrf((id) => api.delete(`/reviews/${id}`)),
-  getInternshipReviews: (internshipId) => api.get(`/reviews/internship/${internshipId}`),
-  getCompanyReviews: (companyId) => api.get(`/reviews/company/${companyId}`),
-  getUserReviews: (userId) => api.get(`/reviews/user/${userId}`),
-  getReviewStats: (userId) => api.get(`/reviews/stats/${userId}`),
-  reportReview: withCsrf((reviewId, data) => api.post(`/reviews/${reviewId}/report`, data)),
-  getReviewReports: () => api.get('/reviews/reports'),
   moderateReview: withCsrf((reviewId, data) => api.patch(`/reviews/${reviewId}/moderate`, data)),
 }
 
 // Certificate API
 export const certificateAPI = {
-  generateCertificate: withCsrf((data) => api.post('/certificates/generate', data)),
   getCertificates: () => api.get('/certificates'),
   getCertificateById: (id) => api.get(`/certificates/${id}`),
   verifyCertificate: (code) => api.get(`/certificates/verify/${code}`),
-  downloadCertificate: (id) => api.get(`/certificates/${id}/download`, { responseType: 'blob' }),
+  downloadCertificate: (id) => api.get(`/certificates/${id}/download`),
   addCertificate: withCsrf((data) => api.post('/certificates', data)),
   updateCertificate: withCsrf((id, data) => api.put(`/certificates/${id}`, data)),
   deleteCertificate: withCsrf((id) => api.delete(`/certificates/${id}`)),
-  getUserCertificates: () => api.get('/certificates/user/my-certificates'),
+  getUserCertificates: () => api.get('/certificates/me'),
   generateShareLink: withCsrf((id) => api.post(`/certificates/${id}/share`)),
   getCertificateAnalytics: (id) => api.get(`/certificates/${id}/analytics`),
 }
