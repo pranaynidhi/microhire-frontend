@@ -55,7 +55,7 @@ const Analytics = () => {
       let res
       if (user?.role === 'admin') {
         // Platform analytics
-        res = await api.get('/analytics/overview', {
+        res = await api.get('/analytics/platform', {
           params: dateRange[0] && dateRange[1] ? {
             startDate: dateRange[0].format('YYYY-MM-DD'),
             endDate: dateRange[1].format('YYYY-MM-DD')

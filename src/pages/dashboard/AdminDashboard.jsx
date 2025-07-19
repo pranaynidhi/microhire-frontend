@@ -24,7 +24,7 @@ const AdminDashboard = () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.get('/analytics/overview', {
+      const res = await api.get('/analytics/platform', {
         params: dateRange[0] && dateRange[1] ? {
           startDate: dateRange[0].format('YYYY-MM-DD'),
           endDate: dateRange[1].format('YYYY-MM-DD')
