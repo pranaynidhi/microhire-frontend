@@ -155,7 +155,7 @@ const InternshipListings = () => {
         <Card title="Recommended Internships" style={{ marginBottom: '24px' }}>
           <Row gutter={[24, 24]}>
             {recommendations.map((internship) => {
-              const companyName = internship.company?.companyName || 'Unknown Company';
+              const companyName = internship.company?.fullName || 'Unknown Company';
               const companyLogo = internship.company?.logoUrl;
               const skills = Array.isArray(internship.skills) ? internship.skills : [];
               return (
@@ -393,7 +393,7 @@ const InternshipListings = () => {
         <>
           <Row gutter={[24, 24]}>
             {internships.map((internship) => {
-              const companyName = internship.company?.companyName || 'Unknown Company';
+              const companyName = internship.company?.fullName || 'Unknown Company';
               const companyLogo = internship.company?.logoUrl;
               const skills = Array.isArray(internship.skills) ? internship.skills : [];
               return (

@@ -120,7 +120,7 @@ const CreateInternship = () => {
         location: values.location,
         duration: values.duration,
         deadline: values.deadline?.toISOString(),
-        companyId: user.id,
+        userId: user.id,
         type: values.type,
         category: values.category,
         stipend: values.stipend || 0,
@@ -417,7 +417,7 @@ const CreateInternship = () => {
                   <div style={{ marginBottom: '24px' }}>
                     <Title level={3}>{previewData.title}</Title>
                     <Text strong style={{ color: '#DC143C', fontSize: '16px' }}>
-                      {previewData.companyName}
+                      {previewData.fullName}
                     </Text>
                   </div>
 

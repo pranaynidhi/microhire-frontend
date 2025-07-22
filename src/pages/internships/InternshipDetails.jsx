@@ -187,7 +187,7 @@ const InternshipDetails = () => {
             <div style={{ marginBottom: '24px' }}>
               <Title level={2}>{internshipData.title}</Title>
               <Text strong style={{ color: '#DC143C', fontSize: '18px' }}>
-                {internshipData.companyName}
+                {internshipData.fullName}
               </Text>
             </div>
 
@@ -200,7 +200,7 @@ const InternshipDetails = () => {
 
             <Descriptions column={1} style={{ marginBottom: '24px' }}>
               <Descriptions.Item label="Company">
-                {internshipData.companyName}
+                {internshipData.fullName}
               </Descriptions.Item>
               <Descriptions.Item label="Location">
                 <Space>
@@ -317,7 +317,7 @@ const InternshipDetails = () => {
               />
             </div>
 
-            {user?.role === 'business' && user?.id === internshipData.companyId && (
+            {user?.role === 'business' && user?.id === internshipData.userId && (
               <>
                 <Divider />
                 <div>

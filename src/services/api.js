@@ -289,4 +289,18 @@ export const searchAPI = {
   trackSearchClick: (data) => api.post('/search/track-click', data),
 }
 
+// Review API
+export const reviewAPI = {
+  getUserReviews: (userId) => api.get(`/reviews/user/${userId}`),
+  getCompanyReviews: (companyId) => api.get(`/reviews/company/${companyId}`),
+  getInternshipReviews: (internshipId) => api.get(`/reviews/internship/${internshipId}`),
+  createReview: (data) => api.post('/reviews', data),
+  updateReview: (reviewId, data) => api.put(`/reviews/${reviewId}`, data),
+  deleteReview: (reviewId) => api.delete(`/reviews/${reviewId}`),
+  reportReview: (reviewId, data) => api.post(`/reviews/${reviewId}/report`, data),
+  moderateReview: (reviewId, data) => api.patch(`/reviews/${reviewId}/moderate`, data),
+  getReports: () => api.get('/reviews/reports'),
+  getReviewStats: (userId) => api.get(`/reviews/stats/${userId}`),
+}
+
 export default api
