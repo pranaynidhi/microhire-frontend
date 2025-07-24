@@ -31,7 +31,7 @@ const { Text, Title } = Typography
 const { TextArea } = Input
 
 const Messages = () => {
-  const [selectedConversation, setSelectedConversation] = useState(null)
+  const [selectedConversationId, setSelectedConversationId] = useState(null)
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const { user } = useAuth()
@@ -44,9 +44,9 @@ const Messages = () => {
   })
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
-    queryKey: ['messages', selectedConversation?.id],
-    queryFn: () => selectedConversation ? messageAPI.getMessages(selectedConversation.id) : null,
-    enabled: !!selectedConversation
+    queryKey: ['messages', selectedConversationId],
+    queryFn: () => selectedConversationId ? messageAPI.getMessages(selectedConversationId) : null,
+    enabled: !!selectedConversationId
   })
 
   const markAsReadMutation = useMutation({
@@ -59,24 +59,32 @@ const Messages = () => {
   const sendMessageMutation = useMutation({
     mutationFn: (messageData) => messageAPI.sendMessage(messageData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['messages', selectedConversation?.id])
+      queryClient.invalidateQueries(['messages', selectedConversationId])
       queryClient.invalidateQueries(['conversations'])
       setMessage('')
     }
   })
 
+  // Derive the selectedConversation object from the latest conversations list
+  const conversationList = conversations?.data?.data?.conversations || []
+  const selectedConversation = conversationList.find(c => c.id === selectedConversationId)
+
   useEffect(() => {
-    if (selectedConversation) {
-      joinConversation(selectedConversation.id)
-      markAsReadMutation.mutate(selectedConversation.id)
+    if (selectedConversationId && selectedConversation) {
+      joinConversation(selectedConversationId)
+      if (selectedConversation.unreadCount > 0) {
+        markAsReadMutation.mutate(selectedConversationId)
+      }
     }
 
     return () => {
-      if (selectedConversation) {
-        leaveConversation(selectedConversation.id)
+      if (selectedConversationId) {
+        leaveConversation(selectedConversationId)
       }
     }
-  }, [selectedConversation, joinConversation, leaveConversation, markAsReadMutation])
+  }, [selectedConversationId, selectedConversation, joinConversation, leaveConversation, markAsReadMutation])
+
+  
 
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedConversation) return
@@ -94,7 +102,7 @@ const Messages = () => {
   }
 
   const handleConversationSelect = (conversation) => {
-    setSelectedConversation(conversation)
+    setSelectedConversationId(conversation.id)
   }
 
   if (conversationsLoading) {
@@ -114,24 +122,24 @@ const Messages = () => {
           <Card 
             title="Conversations" 
             style={{ height: '100%' }}
-            bodyStyle={{ padding: 0, height: 'calc(100% - 57px)', overflow: 'auto' }}
+            styles={{ body: { padding: 0, height: 'calc(100% - 57px)', overflow: 'auto' } }}
           >
-            {conversations?.data?.conversations?.length === 0 ? (
+            {conversationList.length === 0 ? (
               <Empty 
                 description="No conversations yet"
                 style={{ padding: '40px 20px' }}
               />
             ) : (
               <List
-                dataSource={conversations?.data?.conversations || []}
+                dataSource={conversationList}
                 renderItem={(conversation) => {
-                  const otherParticipant = conversation.participants.find(p => p.id !== user.id)
+                  const otherParticipant = conversation.participants.find(p => String(p.id) !== String(user.id))
                   return (
                     <List.Item
                       key={conversation.id}
                       style={{
                         cursor: 'pointer',
-                        backgroundColor: selectedConversation?.id === conversation.id ? '#f0f0f0' : 'transparent',
+                        backgroundColor: selectedConversationId === conversation.id ? '#f0f0f0' : 'transparent',
                         padding: '12px 16px',
                         borderBottom: '1px solid #f0f0f0'
                       }}
@@ -172,16 +180,16 @@ const Messages = () => {
         <Col xs={24} md={16}>
           <Card 
             title={selectedConversation ? 
-              conversations?.data?.conversations?.find(c => c.id === selectedConversation.id)?.participants?.find(p => p.id !== user.id)?.fullName || 'Unknown User'
+              selectedConversation.participants?.find(p => p.id !== user.id)?.fullName || 'Unknown User'
               : 'Select a conversation'
             }
             style={{ height: '100%' }}
-            bodyStyle={{ 
+            styles={{ body: { 
               padding: 0, 
               height: 'calc(100% - 57px)', 
               display: 'flex', 
               flexDirection: 'column' 
-            }}
+            } }}
           >
             {!selectedConversation ? (
               <div style={{ 
@@ -210,40 +218,49 @@ const Messages = () => {
                       <Spin />
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {messages?.data?.messages?.map((msg) => (
-                        <div
-                          key={msg.id}
-                          style={{
-                            display: 'flex',
-                            justifyContent: msg.senderId === user.id ? 'flex-end' : 'flex-start',
-                            marginBottom: '8px'
-                          }}
-                        >
-                          <div
-                            style={{
-                              maxWidth: '70%',
-                              padding: '8px 12px',
-                              borderRadius: '12px',
-                              backgroundColor: msg.senderId === user.id ? '#DC143C' : '#f0f0f0',
-                              color: msg.senderId === user.id ? 'white' : '#333'
-                            }}
-                          >
-                            <Text style={{ fontSize: '14px' }}>
-                              {msg.content}
-                            </Text>
-                            <div style={{ 
-                              fontSize: '11px', 
-                              opacity: 0.7, 
-                              marginTop: '4px',
-                              textAlign: msg.senderId === user.id ? 'right' : 'left'
-                            }}>
-                              {dayjs(msg.createdAt).format('HH:mm')}
-                            </div>
-                          </div>
+                    <>
+                      {Array.isArray(messages?.data?.data?.messages) && messages.data.data.messages.length === 0 && (
+                        <div style={{ textAlign: 'center', color: '#888', marginTop: '32px' }}>
+                          No messages in this conversation.
                         </div>
-                      ))}
-                    </div>
+                      )}
+                      {Array.isArray(messages?.data?.data?.messages) && messages.data.data.messages.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {messages.data.data.messages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              style={{
+                                display: 'flex',
+                                justifyContent: String(msg.senderId) === String(user.id) ? 'flex-end' : 'flex-start',
+                                marginBottom: '8px'
+                              }}
+                            >
+                              <div
+                                style={{
+                                  maxWidth: '70%',
+                                  padding: '8px 12px',
+                                  borderRadius: '12px',
+                                  backgroundColor: String(msg.senderId) === String(user.id) ? '#DC143C' : '#f0f0f0',
+                                  color: String(msg.senderId) === String(user.id) ? 'white' : '#333'
+                                }}
+                              >
+                                <Text style={{ fontSize: '14px' }}>
+                                  {msg.content}
+                                </Text>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  opacity: 0.7, 
+                                  marginTop: '4px',
+                                  textAlign: String(msg.senderId) === String(user.id) ? 'right' : 'left'
+                                }}>
+                                  {dayjs(msg.createdAt).format('HH:mm')}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
                   )}
                 </div>
 

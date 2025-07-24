@@ -26,9 +26,18 @@ const Sidebar = () => {
   const location = useLocation()
 
   const handleMenuClick = ({ key }) => {
-    navigate(key)
+    if (key === 'certificates-link') {
+      if (user?.role === 'admin') {
+        navigate('/admin?tab=certificates');
+      } else {
+        navigate('/profile');
+      }
+      if (isMobile) closeMobileSidebar();
+      return;
+    }
+    navigate(key);
     if (isMobile) {
-      closeMobileSidebar()
+      closeMobileSidebar();
     }
   }
 
@@ -59,7 +68,7 @@ const Sidebar = () => {
     const studentItems = [
       ...commonItems,
       {
-        key: '/certificates',
+        key: 'certificates-link', // dummy key
         icon: <TrophyOutlined />,
         label: 'Certificates',
       },

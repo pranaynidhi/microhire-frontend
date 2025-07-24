@@ -5,7 +5,8 @@ import {
   UserOutlined, 
   SettingOutlined, 
   LogoutOutlined,
-  MenuOutlined
+  MenuOutlined,
+  FileTextOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextUtils'
 import { useSocket } from '../../contexts/SocketContextUtils'
@@ -96,19 +97,7 @@ const Navbar = () => {
       }}
     >
       {/* Logo and Sidebar Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <Button
-          type="text"
-          icon={<MenuOutlined />}
-          onClick={toggleSidebar}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            height: '40px',
-            borderRadius: '8px'
-          }}
-        />
-        
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>        
         <div 
           style={{ 
             display: 'flex', 
@@ -175,6 +164,27 @@ const Navbar = () => {
           </Badge>
         </NotificationDropdown>
 
+        {/* Certificates */}
+        <Button
+          type="text"
+          icon={<FileTextOutlined />}
+          onClick={() => {
+            if (user?.role === 'admin') {
+              navigate('/admin?tab=certificates');
+            } else {
+              navigate('/profile'); // Profile page handles tab selection based on role
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            height: '40px',
+            borderRadius: '8px'
+          }}
+        >
+          Certificates
+        </Button>
+
         {/* User Menu */}
         <Dropdown
           menu={{ items: userMenuItems, onClick: handleMenuClick }}
@@ -191,7 +201,7 @@ const Navbar = () => {
           }}>
             <Avatar 
               size={36}
-              src={user?.avatar}
+              src={user?.role === 'business' ? user?.logoUrl : user?.avatar}
               style={{ 
                 backgroundColor: '#DC143C',
                 color: 'white'

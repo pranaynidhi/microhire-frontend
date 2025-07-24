@@ -24,7 +24,7 @@ import {
   HeartOutlined,
   HeartFilled
 } from '@ant-design/icons'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQuery as useReactQuery } from '@tanstack/react-query'
 import { internshipAPI } from '../../services/api'
 import { useNavigate } from 'react-router-dom'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -32,6 +32,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { searchAPI } from '../../services/api'
 import { useEffect } from 'react'
+import { message } from 'antd'
 
 dayjs.extend(relativeTime)
 
@@ -64,6 +65,53 @@ const InternshipListings = () => {
       console.error('Internship search error:', error);
     }
   })
+
+  // Sync saved internships from backend on mount
+  const { data: savedData, isLoading: savedLoading } = useReactQuery({
+    queryKey: ['saved-internships'],
+    queryFn: () => internshipAPI.getMyInternships().then(res => res.data),
+  })
+
+  useEffect(() => {
+    if (savedData?.internships) {
+      setSavedInternships(new Set(savedData.internships.map(i => i.id)))
+    }
+  }, [savedData])
+
+  // Mutations for bookmarking
+  const bookmarkMutation = useMutation({
+    mutationFn: (internshipId) => internshipAPI.bookmarkInternship(internshipId),
+    onSuccess: (_, internshipId) => {
+      setSavedInternships(prev => new Set(prev).add(internshipId))
+      message.success('Internship saved!')
+    },
+    onError: () => {
+      message.error('Failed to save internship.')
+    }
+  })
+
+  const unbookmarkMutation = useMutation({
+    mutationFn: (internshipId) => internshipAPI.removeBookmark(internshipId),
+    onSuccess: (_, internshipId) => {
+      setSavedInternships(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(internshipId)
+        return newSet
+      })
+      message.success('Internship removed from saved list.')
+    },
+    onError: () => {
+      message.error('Failed to remove internship from saved list.')
+    }
+  })
+
+  const handleSaveInternship = (internshipId) => {
+    if (savedInternships.has(internshipId)) {
+      unbookmarkMutation.mutate(internshipId)
+    } else {
+      bookmarkMutation.mutate(internshipId)
+    }
+  }
 
   // Fetch recommendations when no search/filter is active
   useEffect(() => {
@@ -113,18 +161,6 @@ const InternshipListings = () => {
     setSearchParams(prev => ({ ...prev, [key]: value, page: 1 }))
   }
 
-  const handleSaveInternship = (internshipId) => {
-    setSavedInternships(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(internshipId)) {
-        newSet.delete(internshipId)
-      } else {
-        newSet.add(internshipId)
-      }
-      return newSet
-    })
-  }
-
   const clearFilters = () => {
     setSearchParams({
       search: '',
@@ -137,14 +173,9 @@ const InternshipListings = () => {
     })
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading || savedLoading) return <LoadingSpinner />
 
-  console.log('API Response:', data);
-  console.log('Error:', error);
-
-  const internships = data?.internships || []
-
-  console.log('Internships:', internships);
+  const internships = data?.data?.internships || []
 
   return (
     <div>
@@ -373,7 +404,7 @@ const InternshipListings = () => {
       {/* Results Summary */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text>
-          Showing <strong>{internships.length}</strong> of <strong>{data?.total || 0}</strong> internships
+          Showing <strong>{internships.length}</strong> of <strong>{data?.data?.pagination?.totalItems || 0}</strong> internships
         </Text>
         <Select defaultValue="newest" style={{ width: 120 }}>
           <Option value="newest">Newest</Option>
@@ -415,7 +446,7 @@ const InternshipListings = () => {
                         type="primary" 
                         onClick={() => navigate(`/internships/${internship.id}`)}
                       >
-                        Apply Now
+                        More Details
                       </Button>
                     ]}
                   >
@@ -497,7 +528,7 @@ const InternshipListings = () => {
           <div style={{ textAlign: 'center', marginTop: '40px' }}>
             <Pagination
               current={searchParams.page}
-              total={data?.pagination?.totalItems || 0}
+              total={data?.data?.pagination?.totalItems || 0}
               pageSize={searchParams.limit}
               onChange={(page) => handleFilterChange('page', page)}
               showSizeChanger

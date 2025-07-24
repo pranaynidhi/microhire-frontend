@@ -60,20 +60,15 @@ const LoginPage = () => {
   };
   
   const handle2FASuccess = (result) => {
-    if (result.success) {
-      // Close 2FA modal
+    if (result.accessToken) {
+      // Save token to localStorage
+      localStorage.setItem("token", result.accessToken);
+      // Optionally, save refreshToken as well
+      // localStorage.setItem("refreshToken", result.refreshToken);
+      console.log('2FA Success:', result);
       setShow2FAModal(false);
       setTwoFAData({ email: '', tempToken: '' });
-      
-      // Get user from context after successful verification
-      const userData = result.user || JSON.parse(localStorage.getItem("user"));
-      
-      // Redirect based on user role
-      if (userData?.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate("/dashboard");
     }
   };
   

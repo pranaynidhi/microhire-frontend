@@ -50,23 +50,17 @@ const InternshipDetails = () => {
   const [applyModalVisible, setApplyModalVisible] = useState(false)
   const [reviewModal, setReviewModal] = useState({ open: false, mode: 'add', review: null })
   const [reviewLoading, setReviewLoading] = useState(false)
+  const [resumeFile, setResumeFile] = useState(null)
 
   const { data: internship, isLoading, error } = useQuery({
     queryKey: ['internship', id],
-    queryFn: () => internshipAPI.getInternshipById(id),
+    queryFn: () => internshipAPI.getInternshipById(id).then(res => res.data),
     enabled: !!id
   })
 
   const { data: applications } = useQuery({
     queryKey: ['applications', id],
     queryFn: () => applicationAPI.getApplicationsByInternshipId(id)
-  })
-
-  // Fetch internship reviews
-  const { data: internshipReviews, isLoading: reviewsLoading, refetch: refetchReviews } = useQuery({
-    queryKey: ['internship-reviews', id],
-    queryFn: () => reviewAPI.getInternshipReviews(id),
-    enabled: !!id
   })
 
   const applyMutation = useMutation({
@@ -84,7 +78,7 @@ const InternshipDetails = () => {
   })
 
   const saveMutation = useMutation({
-    mutationFn: () => internshipAPI.saveInternship(id),
+    mutationFn: () => internshipAPI.bookmarkInternship(id),
     onSuccess: () => {
       setSaved(true)
       message.success('Internship saved to your list!')
@@ -108,13 +102,23 @@ const InternshipDetails = () => {
   const handleApply = (values) => {
     const applicationData = {
       internshipId: parseInt(id),
-      coverLetter: values.coverLetter
+      coverLetter: values.coverLetter,
+      expectedStipend: values.expectedStipend,
+      preferredStartDate: values.preferredStartDate ? values.preferredStartDate.toISOString() : undefined,
+      // Resume will be handled as FormData below
     }
-    applyMutation.mutate(applicationData)
+    const formData = new FormData()
+    Object.entries(applicationData).forEach(([key, value]) => {
+      if (value !== undefined) formData.append(key, value)
+    })
+    if (resumeFile) {
+      formData.append('resume', resumeFile)
+    }
+    applyMutation.mutate(formData)
   }
 
   // Find user's own review if exists
-  const userReview = internshipReviews?.data?.reviews?.find(r => r.userId === user?.id)
+  const userReview = null // No longer fetching reviews, so no userReview
 
   // Handler to open modal for add/edit/report
   const openReviewModal = (mode, review = null) => {
@@ -145,7 +149,6 @@ const InternshipDetails = () => {
         message.success('Review reported!')
       }
       closeReviewModal()
-      refetchReviews()
     } catch (err) {
       message.error(err.response?.data?.message || 'Action failed')
     } finally {
@@ -187,7 +190,7 @@ const InternshipDetails = () => {
             <div style={{ marginBottom: '24px' }}>
               <Title level={2}>{internshipData.title}</Title>
               <Text strong style={{ color: '#DC143C', fontSize: '18px' }}>
-                {internshipData.fullName}
+                {internshipData.company?.fullName}
               </Text>
             </div>
 
@@ -200,7 +203,7 @@ const InternshipDetails = () => {
 
             <Descriptions column={1} style={{ marginBottom: '24px' }}>
               <Descriptions.Item label="Company">
-                {internshipData.fullName}
+                {internshipData.company?.fullName}
               </Descriptions.Item>
               <Descriptions.Item label="Location">
                 <Space>
@@ -295,11 +298,11 @@ const InternshipDetails = () => {
                 </div>
               )}
               <ReviewList
-                reviews={internshipReviews?.data?.reviews || []}
+                reviews={[]} // No reviews data available
                 entityType="internship"
                 entityId={id}
-                onReportSuccess={refetchReviews}
-                onReport={review => openReviewModal('report', review)}
+                onReportSuccess={() => {}} // No refetchReviews
+                onReport={() => {}} // No report handler
               />
               <ReviewModal
                 open={reviewModal.open}
@@ -493,12 +496,51 @@ const InternshipDetails = () => {
         <Form
           form={form}
           onFinish={handleApply}
+          layout="vertical"
         >
           <Form.Item
             name="coverLetter"
+            label="Cover Letter"
             rules={[{ required: true, message: 'Please write a cover letter' }]}
           >
             <TextArea rows={4} />
+          </Form.Item>
+          <Form.Item
+            name="expectedStipend"
+            label="Expected Monthly Stipend (NPR)"
+            rules={[{ required: true, message: 'Please enter your expected stipend' }]}
+          >
+            <Input type="number" min={0} placeholder="e.g., 10000" />
+          </Form.Item>
+          <Form.Item
+            name="preferredStartDate"
+            label="Preferred Start Date"
+            rules={[{ required: true, message: 'Please select your preferred start date' }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            name="resume"
+            label="Resume (PDF, max 2MB)"
+            valuePropName="fileList"
+            getValueFromEvent={e => Array.isArray(e) ? e : e && e.fileList}
+            extra="Upload your resume as a PDF file."
+            rules={[{ required: true, message: 'Please upload your resume' }]}
+          >
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={e => {
+                const file = e.target.files[0]
+                if (file && file.type === 'application/pdf' && file.size <= 2 * 1024 * 1024) {
+                  setResumeFile(file)
+                } else {
+                  setResumeFile(null)
+                  message.error('Please upload a PDF file under 2MB.')
+                }
+              }}
+            />
+            {resumeFile && <span style={{ marginLeft: 8 }}>{resumeFile.name}</span>}
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={applyMutation.isLoading}>

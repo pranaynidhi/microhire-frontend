@@ -11,8 +11,7 @@ dayjs.extend(relativeTime)
 
 const { Text } = Typography
 
-const NotificationDropdown = ({ children }) => {
-  const [open, setOpen] = useState(false)
+const NotificationList = () => {
   const { notifications, markNotificationRead } = useSocket()
 
   const handleMarkAsRead = async (notificationId) => {
@@ -37,7 +36,7 @@ const NotificationDropdown = ({ children }) => {
     }
   }
 
-  const dropdownContent = (
+  return (
     <div style={{ 
       width: '380px', 
       maxHeight: '500px', 
@@ -68,7 +67,6 @@ const NotificationDropdown = ({ children }) => {
           </Button>
         )}
       </div>
-
       {/* Notifications List */}
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
         {notifications.length === 0 ? (
@@ -137,7 +135,6 @@ const NotificationDropdown = ({ children }) => {
           />
         )}
       </div>
-
       {/* Footer */}
       {notifications.length > 10 && (
         <div style={{ 
@@ -152,12 +149,15 @@ const NotificationDropdown = ({ children }) => {
       )}
     </div>
   )
+}
 
+const NotificationDropdown = ({ children }) => {
+  const [open, setOpen] = useState(false)
   return (
     <Dropdown
       open={open}
       onOpenChange={setOpen}
-      dropdown={dropdownContent}
+      dropdown={<NotificationList />}
       placement="bottomRight"
       trigger={['click']}
     >
@@ -167,7 +167,9 @@ const NotificationDropdown = ({ children }) => {
 }
 
 NotificationDropdown.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node
 }
+
+export { NotificationList }
 
 export default NotificationDropdown

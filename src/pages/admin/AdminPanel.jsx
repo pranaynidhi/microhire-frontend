@@ -24,6 +24,7 @@ import {
   Form,
   Switch,
   Divider,
+  Descriptions,
 } from "antd";
 import {
   UserOutlined,
@@ -39,6 +40,7 @@ import {
   DownloadOutlined,
   ReloadOutlined,
   SearchOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminAPI } from "../../services/api";
@@ -56,6 +58,50 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
+
+const certificateColumns = [
+  {
+    title: 'Student',
+    dataIndex: 'studentName',
+    key: 'student',
+    render: (text, record) => <span>{text}</span>,
+  },
+  {
+    title: 'Company',
+    dataIndex: 'companyName',
+    key: 'company',
+    render: (text, record) => <span>{text}</span>,
+  },
+  {
+    title: 'Internship',
+    dataIndex: 'internshipTitle',
+    key: 'internship',
+    render: (text, record) => <span>{text}</span>,
+  },
+  {
+    title: 'Issued At',
+    dataIndex: 'issuedAt',
+    key: 'issuedAt',
+    render: (date) => dayjs(date).format('MMM DD, YYYY'),
+  },
+  {
+    title: 'Status',
+    dataIndex: 'isRevoked',
+    key: 'status',
+    render: (isRevoked) => isRevoked ? <Tag color="red">Revoked</Tag> : <Tag color="green">Active</Tag>,
+  },
+  {
+    title: 'Actions',
+    key: 'actions',
+    render: (text, record) => (
+      <Space>
+        <Button icon={<EyeOutlined />} onClick={() => openViewModal(record)}>View</Button>
+        <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>Edit</Button>
+        <Button icon={<StopOutlined />} danger disabled={record.isRevoked} onClick={() => handleRevokeCertificate(record)}>Revoke</Button>
+      </Space>
+    ),
+  },
+];
 
 const AdminPanel = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -437,7 +483,7 @@ const AdminPanel = () => {
         <div>
           <Text strong>{title}</Text>
           <br />
-          <Text type="secondary">{record.companyName}</Text>
+          <Text type="secondary">{record.company?.fullName || 'Unknown Company'}</Text>
         </div>
       ),
     },
@@ -537,6 +583,83 @@ const AdminPanel = () => {
       ),
     },
   ];
+
+  // Add state for modals and selected certificate above AdminPanel component
+  const [viewModal, setViewModal] = useState({ open: false, certificate: null });
+  const [editModal, setEditModal] = useState({ open: false, certificate: null });
+  const [revokeLoading, setRevokeLoading] = useState(false);
+
+  const openViewModal = (certificate) => setViewModal({ open: true, certificate });
+  const closeViewModal = () => setViewModal({ open: false, certificate: null });
+
+  const openEditModal = (certificate) => setEditModal({ open: true, certificate });
+  const closeEditModal = () => setEditModal({ open: false, certificate: null });
+
+  const handleRevokeCertificate = async (certificate) => {
+    Modal.confirm({
+      title: 'Revoke Certificate',
+      content: 'Are you sure you want to revoke this certificate? This action cannot be undone.',
+      okText: 'Revoke',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setRevokeLoading(true);
+        try {
+          await adminAPI.revokeCertificate(certificate.id, 'Revoked by admin');
+          toast.success('Certificate revoked successfully');
+          refetchCertificates();
+        } catch (err) {
+          toast.error('Failed to revoke certificate');
+        } finally {
+          setRevokeLoading(false);
+        }
+      },
+    });
+  };
+
+  // Add state for issue modal above AdminPanel component
+  const [issueModal, setIssueModal] = useState({ open: false });
+  const [issueLoading, setIssueLoading] = useState(false);
+  const [form] = Form.useForm();
+
+  const openIssueModal = () => setIssueModal({ open: true });
+  const closeIssueModal = () => setIssueModal({ open: false });
+
+  // Add state for user/internship options above AdminPanel component
+  const [studentOptions, setStudentOptions] = useState([]);
+  const [companyOptions, setCompanyOptions] = useState([]);
+  const [internshipOptions, setInternshipOptions] = useState([]);
+
+  const fetchStudents = async (search) => {
+    // Replace with actual API call for students
+    const res = await adminAPI.getUsers({ role: 'student', search });
+    setStudentOptions(res.data?.users?.map(u => ({ label: u.fullName, value: u.id })) || []);
+  };
+  const fetchCompanies = async (search) => {
+    // Replace with actual API call for companies
+    const res = await adminAPI.getUsers({ role: 'business', search });
+    setCompanyOptions(res.data?.users?.map(u => ({ label: u.fullName, value: u.id })) || []);
+  };
+  const fetchInternships = async (search) => {
+    // Replace with actual API call for internships
+    const res = await adminAPI.getInternships({ search });
+    setInternshipOptions(res.data?.internships?.map(i => ({ label: i.title, value: i.id })) || []);
+  };
+
+  const handleIssueCertificate = async (values) => {
+    setIssueLoading(true);
+    try {
+      await adminAPI.addCertificate(values);
+      toast.success('Certificate issued successfully');
+      closeIssueModal();
+      refetchCertificates();
+      form.resetFields();
+    } catch (err) {
+      toast.error('Failed to issue certificate');
+    } finally {
+      setIssueLoading(false);
+    }
+  };
 
   if (dashboardLoading) {
     return <LoadingSpinner />;
@@ -705,6 +828,28 @@ const AdminPanel = () => {
                   `${range[0]}-${range[1]} of ${total} internships`,
               }}
             />
+          </TabPane>
+
+          <TabPane tab="Certificates" key="certificates">
+            <div style={{ marginBottom: '16px' }}>
+              <Button type="primary" onClick={openIssueModal} style={{ marginRight: 8 }}>Issue Certificate</Button>
+              <Button icon={<ReloadOutlined />} onClick={refetchCertificates}>Refresh</Button>
+            </div>
+            <Table
+              columns={certificateColumns}
+              dataSource={certificatesData?.certificates || []}
+              loading={certificatesLoading}
+              rowKey="id"
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} certificates`,
+              }}
+            />
+            {/* Issue Certificate Modal (to be implemented) */}
+            {/* Edit Certificate Modal (to be implemented) */}
+            {/* View Certificate Modal (to be implemented) */}
           </TabPane>
 
           <TabPane tab="Reports" key="reports">
@@ -936,7 +1081,7 @@ const AdminPanel = () => {
                   }}
                 >
                   <Text>
-                    Company: {selectedUser.companyName || "Not specified"}
+                    Company: {selectedUser.fullName || "Not specified"}
                   </Text>
                   <br />
                   <Text>
@@ -946,6 +1091,85 @@ const AdminPanel = () => {
               </div>
             )}
           </div>
+        )}
+      </Modal>
+
+      {/* Issue Certificate Modal */}
+      <Modal
+        title="Issue Certificate"
+        open={issueModal.open}
+        onCancel={closeIssueModal}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleIssueCertificate}
+        >
+          <Form.Item label="Student" name="studentId" rules={[{ required: true, message: 'Please select a student' }]}> <Select showSearch filterOption={false} onSearch={fetchStudents} options={studentOptions} placeholder="Search students..." /> </Form.Item>
+          <Form.Item label="Company" name="companyId" rules={[{ required: true, message: 'Please select a company' }]}> <Select showSearch filterOption={false} onSearch={fetchCompanies} options={companyOptions} placeholder="Search companies..." /> </Form.Item>
+          <Form.Item label="Internship" name="internshipId" rules={[{ required: true, message: 'Please select an internship' }]}> <Select showSearch filterOption={false} onSearch={fetchInternships} options={internshipOptions} placeholder="Search internships..." /> </Form.Item>
+          <Form.Item label="Performance" name="performance"> <Input.TextArea rows={3} /> </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={issueLoading}>Issue Certificate</Button>
+            <Button style={{ marginLeft: 8 }} onClick={closeIssueModal}>Cancel</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* View Certificate Modal */}
+      <Modal
+        title="View Certificate"
+        open={viewModal.open}
+        onCancel={closeViewModal}
+        footer={null}
+        width={600}
+      >
+        {viewModal.certificate && (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="Student">{viewModal.certificate.studentName}</Descriptions.Item>
+            <Descriptions.Item label="Company">{viewModal.certificate.companyName}</Descriptions.Item>
+            <Descriptions.Item label="Internship">{viewModal.certificate.internshipTitle}</Descriptions.Item>
+            <Descriptions.Item label="Issued At">{dayjs(viewModal.certificate.issuedAt).format('MMM DD, YYYY')}</Descriptions.Item>
+            <Descriptions.Item label="Status">{viewModal.certificate.isRevoked ? <Tag color="red">Revoked</Tag> : <Tag color="green">Active</Tag>}</Descriptions.Item>
+            <Descriptions.Item label="Performance">{viewModal.certificate.performance}</Descriptions.Item>
+            <Descriptions.Item label="Certificate ID">{viewModal.certificate.certificateId}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Edit Certificate Modal */}
+      <Modal
+        title="Edit Certificate"
+        open={editModal.open}
+        onCancel={closeEditModal}
+        footer={null}
+        width={600}
+      >
+        {editModal.certificate && (
+          <Form
+            layout="vertical"
+            initialValues={{ performance: editModal.certificate.performance }}
+            onFinish={async (values) => {
+              try {
+                await adminAPI.updateCertificate(editModal.certificate.id, values);
+                toast.success('Certificate updated successfully');
+                closeEditModal();
+                refetchCertificates();
+              } catch (err) {
+                toast.error('Failed to update certificate');
+              }
+            }}
+          >
+            <Form.Item label="Performance" name="performance">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit">Save</Button>
+              <Button style={{ marginLeft: 8 }} onClick={closeEditModal}>Cancel</Button>
+            </Form.Item>
+          </Form>
         )}
       </Modal>
     </div>

@@ -146,16 +146,18 @@ export const authAPI = {
 // User API
 export const userAPI = {
   getProfile: () => api.get('/users/me'),
+  // updateProfile: Accepts userData, including 'education' (array of objects) for students
   updateProfile: withCsrf((userData) => api.put('/users/me', userData)),
   uploadAvatar: withCsrf((formData) => api.post('/upload/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })),
   getUsers: (params) => api.get('/users', { params }),
   getUserById: (id) => api.get(`/users/${id}`),
-  getSettings: () => api.get('/users/me/settings'),
-  updateSettings: withCsrf((settings) => api.put('/users/me/settings', settings)),
+  getSettings: () => api.get('/users/me'),
+  updateSettings: withCsrf((settings) => api.put('/users/me', settings)),
   changePassword: withCsrf((passwordData) => api.put('/users/me/password', passwordData)),
-  deleteAccount: withCsrf(() => api.delete('/users/me/delete')),
+  // Delete account now accepts password and sends it in the body
+  deleteAccount: withCsrf((password) => api.delete('/users/me/delete', { data: { password } })),
   getMyApplications: () => api.get('/users/me/applications'),
   getMyInternships: () => api.get('/users/me/internships'),
   subscribe: withCsrf((data) => api.post('/users/subscribe', data)),
@@ -195,14 +197,14 @@ export const applicationAPI = {
 
 // Message API
 export const messageAPI = {
-  getConversations: () => api.get('/messaging/conversations'),
-  getMessages: (conversationId, params) => api.get(`/messaging/conversations/${conversationId}`, { params }),
-  sendMessage: withCsrf((data) => api.post('/messaging/conversations', data)),
-  markAsRead: withCsrf((conversationId) => api.patch(`/messaging/conversations/${conversationId}/read`)),
-  deleteMessage: withCsrf((messageId) => api.delete(`/messaging/${messageId}`)),
-  updateMessage: withCsrf((messageId, data) => api.put(`/messaging/${messageId}`, data)),
-  deleteConversation: withCsrf((conversationId) => api.delete(`/messaging/conversations/${conversationId}`)),
-  getUnreadCount: () => api.get('/messaging/unread-count'),
+  getConversations: () => api.get('/messages/conversations'),
+  getMessages: (conversationId, params) => api.get(`/messages/conversations/${conversationId}`, { params }),
+  sendMessage: withCsrf((data) => api.post(`/messages/conversations/${data.conversationId}`, data)),
+  markAsRead: withCsrf((conversationId) => api.patch(`/messages/conversations/${conversationId}/read`)),
+  deleteMessage: withCsrf((messageId) => api.delete(`/messages/${messageId}`)),
+  updateMessage: withCsrf((messageId, data) => api.put(`/messages/${messageId}`, data)),
+  deleteConversation: withCsrf((conversationId) => api.delete(`/messages/conversations/${conversationId}`)),
+  getUnreadCount: () => api.get('/messages/unread-count'),
 }
 
 // Notification API
@@ -243,6 +245,10 @@ export const adminAPI = {
   getSystemSettings: () => api.get('/admin/settings'),
   updateSystemSettings: withCsrf((settings) => api.put('/admin/settings', settings)),
   moderateReview: withCsrf((reviewId, data) => api.patch(`/reviews/${reviewId}/moderate`, data)),
+  getCertificates: (params) => api.get('/admin/certificates', { params }),
+  addCertificate: withCsrf((data) => api.post('/admin/certificates', data)),
+  updateCertificate: withCsrf((id, data) => api.put(`/admin/certificates/${id}`, data)),
+  revokeCertificate: withCsrf((id, reason) => api.patch(`/admin/certificates/${id}/revoke`, { reason })),
 }
 
 // Certificate API

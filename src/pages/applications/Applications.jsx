@@ -54,7 +54,15 @@ const Applications = () => {
 
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications', filters],
-    queryFn: () => applicationAPI.getMyApplications().then(res => res.data)
+    queryFn: () =>
+      applicationAPI.getMyApplications().then(res => ({
+        ...res.data,
+        applications: res.data.applications.map(app => ({
+          ...app,
+          internshipTitle: app.internship?.title || 'Unknown Internship',
+          company: app.internship?.company || null,
+        })),
+      })),
   })
 
   const handleFilterChange = (key, value) => {
@@ -118,7 +126,7 @@ const Applications = () => {
           <Text strong>{title}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {user?.role === 'student' ? record.companyName : record.studentName}
+            {user?.role === 'student' ? (record.company?.fullName || 'Unknown Company') : record.studentName}
           </Text>
         </div>
       ),
@@ -399,7 +407,7 @@ const Applications = () => {
                 <Text strong>{selectedApplication.internshipTitle}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Company">
-                {selectedApplication.companyName}
+                {selectedApplication.company?.fullName}
               </Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={getStatusColor(selectedApplication.status)}>

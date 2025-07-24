@@ -22,7 +22,7 @@ const ReviewModerationModal = ({
       onCancel={onClose}
       title={mode === 'moderate' ? 'Moderate Review' : 'Report Review'}
       footer={actions || null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Space direction="vertical" style={{ width: '100%' }}>
         <Text strong>Reviewer:</Text>

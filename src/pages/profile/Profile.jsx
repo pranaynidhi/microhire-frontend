@@ -15,7 +15,8 @@ import {
   Divider,
   Tabs,
   List,
-  Progress
+  Progress,
+  Modal
 } from 'antd'
 import { 
   EditOutlined, 
@@ -31,7 +32,8 @@ import {
   BookOutlined,
   TrophyOutlined,
   FolderOutlined,
-  ShareAltOutlined
+  ShareAltOutlined,
+  StopOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextUtils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -59,6 +61,11 @@ const Profile = () => {
 
   // Certificate sharing state
   const [shareLoading, setShareLoading] = useState({});
+
+  // Education modal state
+  const [educationModal, setEducationModal] = useState({ open: false, mode: 'add', record: null })
+  const [educationForm] = Form.useForm()
+  const [educationLoading, setEducationLoading] = useState(false)
 
   // Handler to open modal for reporting
   const openReviewModal = (review) => {
@@ -102,32 +109,92 @@ const Profile = () => {
     }
   }
 
+  // Add/Edit Education
+  const handleOpenEducationModal = (mode, record = null) => {
+    setEducationModal({ open: true, mode, record })
+    educationForm.resetFields();
+    educationForm.setFieldsValue(
+      record || { degree: undefined, institution: undefined, startYear: undefined, endYear: undefined, grade: undefined }
+    );
+  }
+  const handleCloseEducationModal = () => {
+    setEducationModal({ open: false, mode: 'add', record: null })
+    educationForm.resetFields()
+  }
+  const handleSaveEducation = (values) => {
+    let newEducation = [...(profile?.education || [])]
+    if (educationModal.mode === 'edit') {
+      newEducation = newEducation.map((edu, idx) => idx === educationModal.record.idx ? values : edu)
+    } else {
+      newEducation.push(values)
+    }
+    updateProfileMutation.mutate(
+      { education: newEducation },
+      {
+        onSuccess: () => {
+          toast.success('Education updated!')
+          queryClient.invalidateQueries(['user-profile'])
+          handleCloseEducationModal()
+        },
+        onError: () => {
+          toast.error('Failed to update education')
+        }
+      }
+    )
+  }
+  const handleDeleteEducation = (idx) => {
+    const newEducation = (profile?.education || []).filter((_, i) => i !== idx)
+    updateProfileMutation.mutate(
+      { education: newEducation },
+      {
+        onSuccess: () => {
+          toast.success('Education deleted!')
+          queryClient.invalidateQueries(['user-profile'])
+        },
+        onError: () => {
+          toast.error('Failed to delete education')
+        }
+      }
+    )
+  }
+
   // Fetch user profile data
   const { data: profileData, isLoading } = useQuery({
     queryKey: ['user-profile'],
     queryFn: userAPI.getProfile
   })
 
+  // Use up-to-date user info for queries
+  const userId = profileData?.data?.user?.id || user?.id;
+  const userRole = profileData?.data?.user?.role || user?.role;
+
   // Fetch user certificates
   const { data: certificates } = useQuery({
     queryKey: ['user-certificates'],
     queryFn: certificateAPI.getCertificates,
-    enabled: user?.role === 'student'
+    enabled: userRole === 'student'
   })
 
   // Fetch user reviews
   const { data: userReviews, isLoading: reviewsLoading, refetch: refetchReviews } = useQuery({
-    queryKey: ['user-reviews', profile?.id],
-    queryFn: () => profile?.id ? reviewAPI.getUserReviews(profile.id) : Promise.resolve({ data: [] }),
-    enabled: !!profile?.id
+    queryKey: ['user-reviews', userId],
+    queryFn: () => userId ? reviewAPI.getUserReviews(userId) : Promise.resolve({ data: [] }),
+    enabled: !!userId
   })
 
   // Fetch company reviews (for business profile)
   const { data: companyReviews, isLoading: companyReviewsLoading, refetch: refetchCompanyReviews } = useQuery({
-    queryKey: ['company-reviews', profile?.id],
-    queryFn: () => profile?.id ? reviewAPI.getCompanyReviews(profile.id) : Promise.resolve({ data: [] }),
-    enabled: !!profile?.id && profile?.role === 'business'
+    queryKey: ['company-reviews', userId],
+    queryFn: () => userId ? reviewAPI.getCompanyReviews(userId) : Promise.resolve({ data: [] }),
+    enabled: !!userId && userRole === 'business'
   })
+
+  // Fetch company issued certificates
+  const { data: companyCertificates, isLoading: companyCertificatesLoading } = useQuery({
+    queryKey: ['company-issued-certificates', userId],
+    queryFn: () => userId ? certificateAPI.getIssuedCertificates(userId) : Promise.resolve({ data: [] }),
+    enabled: !!userId && userRole === 'business'
+  });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
@@ -352,16 +419,16 @@ const Profile = () => {
           <TabPane tab="Education" key="education">
             <Card 
               title="Education"
-              extra={<Button icon={<PlusOutlined />}>Add Education</Button>}
+              extra={<Button icon={<PlusOutlined />} onClick={() => handleOpenEducationModal('add')}>Add Education</Button>}
             >
               <List
                 dataSource={profile?.education || []}
                 locale={{ emptyText: 'No education records added' }}
-                renderItem={(edu) => (
+                renderItem={(edu, idx) => (
                   <List.Item
                     actions={[
-                      <Button key="edit" type="text" icon={<EditOutlined />} />,
-                      <Button key="delete" type="text" danger icon={<DeleteOutlined />} />
+                      <Button key="edit" type="text" icon={<EditOutlined />} onClick={() => handleOpenEducationModal('edit', { ...edu, idx })} />, 
+                      <Button key="delete" type="text" danger icon={<DeleteOutlined />} loading={educationLoading} onClick={() => handleDeleteEducation(idx)} />
                     ]}
                   >
                     <List.Item.Meta
@@ -380,6 +447,23 @@ const Profile = () => {
                   </List.Item>
                 )}
               />
+              <Modal
+                open={educationModal.open}
+                title={educationModal.mode === 'edit' ? 'Edit Education' : 'Add Education'}
+                onCancel={handleCloseEducationModal}
+                onOk={() => educationForm.submit()}
+                confirmLoading={educationLoading}
+                okText={educationModal.mode === 'edit' ? 'Save' : 'Add'}
+                destroyOnClose
+              >
+                <Form form={educationForm} layout="vertical" onFinish={handleSaveEducation}>
+                  <Form.Item label="Degree" name="degree" rules={[{ required: true, message: 'Degree is required' }]}> <Input /> </Form.Item>
+                  <Form.Item label="Institution" name="institution" rules={[{ required: true, message: 'Institution is required' }]}> <Input /> </Form.Item>
+                  <Form.Item label="Start Year" name="startYear" rules={[{ required: true, message: 'Start year is required' }]}> <Input /> </Form.Item>
+                  <Form.Item label="End Year" name="endYear"> <Input /> </Form.Item>
+                  <Form.Item label="Grade" name="grade"> <Input /> </Form.Item>
+                </Form>
+              </Modal>
             </Card>
           </TabPane>
 
@@ -540,19 +624,19 @@ const Profile = () => {
             >
               <Avatar 
                 size={120} 
-                src={profile?.companyLogo}
+                src={profile?.logoUrl}
                 style={{ 
                   backgroundColor: '#DC143C',
                   cursor: 'pointer',
                   marginBottom: '16px'
                 }}
               >
-                {profile?.companyName?.charAt(0)?.toUpperCase()}
+                {profile?.fullName?.charAt(0)?.toUpperCase()}
               </Avatar>
             </Upload>
             <div>
               <Title level={4} style={{ margin: 0 }}>
-                {profile?.companyName || profile?.fullName}
+                {profile?.fullName}
               </Title>
               <Text type="secondary">{profile?.email}</Text>
               <br />
@@ -623,7 +707,7 @@ const Profile = () => {
                 >
                   <Row gutter={16}>
                     <Col xs={24} sm={12}>
-                      <Form.Item label="Company Name" name="companyName">
+                      <Form.Item label="Company Name" name="fullName">
                         <Input />
                       </Form.Item>
                     </Col>
@@ -750,6 +834,93 @@ const Profile = () => {
                   initialValues={{ reason: '' }}
                   loading={reviewLoading}
                 />
+              </Card>
+            </TabPane>
+          )}
+          {profile?.id && profile?.role === 'business' && (
+            <TabPane tab="Certificates" key="certificates">
+              <Card title="Issued Certificates">
+                <Row gutter={[16, 16]}>
+                  {companyCertificates?.data?.certificates?.length > 0 ? (
+                    companyCertificates.data.certificates.map((cert, index) => {
+                      // Fetch analytics for this certificate
+                      const { data: certAnalytics, isLoading: analyticsLoading } = useQuery({
+                        queryKey: ['certificate-analytics', cert.id],
+                        queryFn: () => certificateAPI.getCertificateAnalytics(cert.id),
+                        enabled: !!cert.id
+                      });
+                      return (
+                        <Col xs={24} sm={12} lg={8} key={index}>
+                          <Card
+                            size="small"
+                            cover={
+                              <div style={{
+                                height: '120px',
+                                background: 'linear-gradient(135deg, #DC143C 0%, #1E3A8A 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white'
+                              }}>
+                                <TrophyOutlined style={{ fontSize: '48px' }} />
+                              </div>
+                            }
+                            actions={[
+                              <Button key="edit" type="text" icon={<EditOutlined />} onClick={() => openEditModal(cert)}>
+                                Edit
+                              </Button>,
+                              <Button key="revoke" type="text" icon={<StopOutlined />} danger disabled={cert.isRevoked} onClick={() => handleRevokeCertificate(cert.id)}>
+                                {cert.isRevoked ? 'Revoked' : 'Revoke'}
+                              </Button>,
+                              <Button key="share" type="text" icon={<ShareAltOutlined />} loading={!!shareLoading[cert.id]} onClick={() => handleShareCertificate(cert.id)}>
+                                Share
+                              </Button>
+                            ]}
+                          >
+                            <Card.Meta
+                              title={cert.internshipTitle}
+                              description={
+                                <Space direction="vertical" size="small">
+                                  <Text>{cert.studentName}</Text>
+                                  <Text type="secondary">
+                                    {dayjs(cert.issuedAt).format('MMM DD, YYYY')}
+                                  </Text>
+                                  {cert.isRevoked && (
+                                    <Tag color="red">Revoked</Tag>
+                                  )}
+                                  {/* Certificate Analytics */}
+                                  <Divider style={{ margin: '8px 0' }} />
+                                  <div>
+                                    <Text strong>Analytics:</Text>
+                                    {analyticsLoading ? (
+                                      <div style={{ fontSize: '12px', color: '#888' }}>Loading...</div>
+                                    ) : certAnalytics?.data ? (
+                                      <Space size="large">
+                                        <span>Views: <Text strong>{certAnalytics.data.views}</Text></span>
+                                        <span>Downloads: <Text strong>{certAnalytics.data.downloads}</Text></span>
+                                        <span>Shares: <Text strong>{certAnalytics.data.shares}</Text></span>
+                                      </Space>
+                                    ) : (
+                                      <div style={{ fontSize: '12px', color: '#888' }}>No analytics</div>
+                                    )}
+                                  </div>
+                                </Space>
+                              }
+                            />
+                          </Card>
+                        </Col>
+                      );
+                    })
+                  ) : (
+                    <Col xs={24}>
+                      <div style={{ textAlign: 'center', padding: '40px' }}>
+                        <TrophyOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
+                        <Text type="secondary">No certificates issued yet</Text>
+                      </div>
+                    </Col>
+                  )}
+                </Row>
+                {/* Edit Certificate Modal (to be implemented) */}
               </Card>
             </TabPane>
           )}

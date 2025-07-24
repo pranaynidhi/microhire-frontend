@@ -45,7 +45,7 @@ const ReviewModal = ({ open, onCancel, onSubmit, mode, initialValues = {}, loadi
         isReport ? 'Report Review' : 'Review'
       }
       footer={actions || null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

@@ -97,7 +97,7 @@ const BusinessDashboard = () => {
       <Table
         columns={columns}
         dataSource={data}
-        rowKey={columns[0].dataIndex}
+        rowKey={(row, idx) => row.id || row._id || row.key || idx}
         pagination={false}
         size="small"
         locale={{ emptyText: <Empty description="No data" /> }}
@@ -106,16 +106,22 @@ const BusinessDashboard = () => {
   )
 
   // Extract analytics data
-  const { totalInternships, totalApplications, topInternships = [], recentApplications = [], hiringRate, applicationStats = [], monthlyApplications = [], typeStats = [], categoryStats = [] } = analytics
+  const { activeInternships, totalApplications, hiredInterns, hiringRate, topInternships = [], recentApplications = [] } = analytics
+
+  // Safely handle undefined stats for charts
+  const applicationStats = analytics.applicationStats || [];
+  const typeStats = analytics.typeStats || [];
+  const categoryStats = analytics.categoryStats || [];
+  const monthlyApplications = analytics.monthlyApplications || [];
 
   return (
     <div>
       <Title level={2}>Business Dashboard</Title>
       <Divider />
       <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 24 }}>
-        <Col xs={24} md={8}><Statistic title="Total Internships" value={totalInternships} /></Col>
+        <Col xs={24} md={8}><Statistic title="Active Internships" value={activeInternships} /></Col>
         <Col xs={24} md={8}><Statistic title="Total Applications" value={totalApplications} /></Col>
-        <Col xs={24} md={8}><Statistic title="Hiring Rate" value={hiringRate + '%'} /></Col>
+        <Col xs={24} md={8}><Statistic title="Hired Interns" value={hiredInterns} /></Col>
         <Col xs={24} md={24} lg={24}>
           <Space>
             <Text strong>Date Range:</Text>
@@ -128,6 +134,9 @@ const BusinessDashboard = () => {
             <Button onClick={fetchAnalytics}>Refresh</Button>
           </Space>
         </Col>
+      </Row>
+      <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 24 }}>
+        <Col xs={24} md={8}><Statistic title="Hiring Rate" value={hiringRate + '%'} /></Col>
       </Row>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12} lg={8}>{renderPieChart(applicationStats, 'count', 'status', 'Application Status Distribution')}</Col>

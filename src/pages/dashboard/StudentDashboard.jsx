@@ -166,7 +166,7 @@ const StudentDashboard = () => {
           <Text strong>{title}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: "12px" }}>
-            {record.internship?.company?.companyName}
+            {record.internship?.company?.fullName}
           </Text>
         </div>
       ),
@@ -218,7 +218,7 @@ const StudentDashboard = () => {
       <div>
         <Text strong>{app.internship?.title}</Text>
         <br />
-        <Text type="secondary">{app.internship?.company?.companyName}</Text>
+        <Text type="secondary">{app.internship?.company?.fullName}</Text>
         <br />
         <Text type="secondary" style={{ fontSize: "12px" }}>
           {dayjs(app.createdAt).fromNow()}
@@ -441,15 +441,15 @@ const StudentDashboard = () => {
                       >
                         <Card.Meta
                           avatar={
-                            <Avatar style={{ backgroundColor: "#DC143C" }}>
-                              {internship.company?.companyName?.charAt(0)}
+                            <Avatar src={internship.company?.logoUrl} style={{ backgroundColor: "#DC143C" }}>
+                              {internship.company?.fullName?.charAt(0)}
                             </Avatar>
                           }
                           title={internship.title}
                           description={
                             <div>
                               <Text type="secondary">
-                                {internship.company?.companyName}
+                                {internship.company?.fullName}
                               </Text>
                               <br />
                               <Text

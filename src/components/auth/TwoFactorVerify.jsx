@@ -32,8 +32,8 @@ const TwoFactorVerify = ({
       
       const response = await twoFactorAPI.verifyLogin(email, token);
       
-      if (response.data && response.data.accessToken) {
-        onSuccess(response.data);
+      if (response.data && response.data.data && response.data.data.accessToken) {
+        onSuccess(response.data.data);
       } else {
         setError('Invalid verification code. Please try again.');
       }
@@ -57,8 +57,8 @@ const TwoFactorVerify = ({
       
       const response = await twoFactorAPI.verifyRecoveryCode(email, recoveryCode.trim());
       
-      if (response.data && response.data.accessToken) {
-        onSuccess(response.data);
+      if (response.data && response.data.data && response.data.data.accessToken) {
+        onSuccess(response.data.data);
       } else {
         setError('Invalid recovery code. Please try again.');
       }

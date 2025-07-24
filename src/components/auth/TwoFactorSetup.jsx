@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Typography, Input, QRCode, Alert, Divider, Space, message } from 'antd';
 import { CheckCircleTwoTone, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { twoFactorAPI } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContextUtils';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -26,8 +26,8 @@ const TwoFactorSetup = ({ visible, onClose, onSuccess }) => {
     try {
       setLoading(true);
       const response = await twoFactorAPI.setup2FA();
-      setQrCodeData(response.data.qrCodeUrl);
-      setSecret(response.data.secret);
+      setQrCodeData(response.data.data.qrCodeUrl);
+      setSecret(response.data.data.secret);
     } catch (error) {
       message.error('Failed to start 2FA setup. Please try again.');
       console.error('2FA setup error:', error);
@@ -45,7 +45,7 @@ const TwoFactorSetup = ({ visible, onClose, onSuccess }) => {
     try {
       setLoading(true);
       const response = await twoFactorAPI.verify2FA(token);
-      setRecoveryCodes(response.data.recoveryCodes);
+      setRecoveryCodes(response.data.data.recoveryCodes);
       setStep(3); // Move to recovery codes step
       message.success('Two-factor authentication enabled successfully!');
     } catch (error) {
@@ -85,7 +85,7 @@ const TwoFactorSetup = ({ visible, onClose, onSuccess }) => {
       
       <div style={{ margin: '24px 0', display: 'flex', justifyContent: 'center' }}>
         {qrCodeData ? (
-          <QRCode value={qrCodeData} size={200} />
+          <img src={qrCodeData} alt="2FA QR Code" style={{ width: 200, height: 200 }} />
         ) : (
           <div style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #d9d9d9', borderRadius: 8 }}>
             Loading QR code...
@@ -218,11 +218,11 @@ const TwoFactorSetup = ({ visible, onClose, onSuccess }) => {
       footer={null}
       width={600}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
-      {step === 3 && renderRecoveryCodes()}
+      {step === 3 && renderStep3()}
     </Modal>
   );
 };

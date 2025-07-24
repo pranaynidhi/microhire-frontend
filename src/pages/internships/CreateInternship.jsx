@@ -417,7 +417,7 @@ const CreateInternship = () => {
                   <div style={{ marginBottom: '24px' }}>
                     <Title level={3}>{previewData.title}</Title>
                     <Text strong style={{ color: '#DC143C', fontSize: '16px' }}>
-                      {previewData.fullName}
+                      {user.fullName}
                     </Text>
                   </div>
 

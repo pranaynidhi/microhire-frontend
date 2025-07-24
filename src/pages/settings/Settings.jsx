@@ -33,6 +33,9 @@ import { useAuth } from '../../contexts/AuthContextUtils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { userAPI } from '../../services/api'
 import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
+import NotificationDropdown, { NotificationList } from '../../components/common/NotificationDropdown'
+import TwoFactorSetup from '../../components/auth/TwoFactorSetup';
 
 const { Title, Text, Paragraph } = Typography
 const { Option } = Select
@@ -42,8 +45,16 @@ const Settings = () => {
   const [form] = Form.useForm()
   const [passwordForm] = Form.useForm()
   const [deleteModalVisible, setDeleteModalVisible] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState('')
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false)
+  const [languageModalVisible, setLanguageModalVisible] = useState(false)
+  const [activeTab, setActiveTab] = useState('account')
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState([]);
 
   // Fetch user settings
   const { data: settingsData } = useQuery({
@@ -77,7 +88,7 @@ const Settings = () => {
 
   // Delete account mutation
   const deleteAccountMutation = useMutation({
-    mutationFn: userAPI.deleteAccount,
+    mutationFn: (password) => userAPI.deleteAccount(password),
     onSuccess: () => {
       toast.success('Account deleted successfully')
       logout()
@@ -88,7 +99,9 @@ const Settings = () => {
   })
 
   const handleSettingsUpdate = (values) => {
-    updateSettingsMutation.mutate(values)
+    // Remove email from payload before sending to backend
+    const { email, ...allowedFields } = values
+    updateSettingsMutation.mutate(allowedFields)
   }
 
   const handlePasswordChange = (values) => {
@@ -96,8 +109,14 @@ const Settings = () => {
   }
 
   const handleDeleteAccount = () => {
-    deleteAccountMutation.mutate()
+    setDeleteError('')
+    if (!deletePassword) {
+      setDeleteError('Password is required to delete your account.')
+      return
+    }
+    deleteAccountMutation.mutate(deletePassword)
     setDeleteModalVisible(false)
+    setDeletePassword('')
   }
 
   const settings = settingsData?.data?.settings || {}
@@ -113,7 +132,7 @@ const Settings = () => {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Tabs defaultActiveKey="account">
+          <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="account">
             <TabPane tab="Account" key="account">
               <Card title="Account Information">
                 <Form
@@ -147,7 +166,7 @@ const Settings = () => {
                           { type: 'email', message: 'Please enter a valid email' }
                         ]}
                       >
-                        <Input prefix={<MailOutlined />} />
+                        <Input prefix={<MailOutlined />} disabled />
                       </Form.Item>
                     </Col>
                     <Col xs={24} sm={12}>
@@ -250,23 +269,31 @@ const Settings = () => {
                         <br />
                         <Text type="secondary">Add an extra layer of security to your account</Text>
                       </div>
-                      <Switch 
-                        checked={settings.twoFactorEnabled} 
-                        onChange={(checked) => {
-                          updateSettingsMutation.mutate({ twoFactorEnabled: checked })
-                        }}
-                      />
+                      <Button
+                        type="primary"
+                        onClick={() => setShow2FAModal(true)}
+                        disabled={settings.twoFactorEnabled}
+                      >
+                        {settings.twoFactorEnabled ? '2FA Enabled' : 'Enable 2FA'}
+                      </Button>
                     </div>
-                    
                     {settings.twoFactorEnabled && (
                       <Alert
-                        message="Two-factor authentication is enabled"
-                        description="Your account is protected with 2FA. You&apos;ll need to enter a code from your authenticator app when signing in."
-                        type="success"
+                        type="info"
+                        message="Two-factor authentication is already enabled. To disable or manage recovery codes, go to the Security tab."
                         showIcon
+                        style={{ marginTop: 16 }}
                       />
                     )}
                   </Space>
+                  <TwoFactorSetup
+                    visible={show2FAModal}
+                    onClose={() => setShow2FAModal(false)}
+                    onSuccess={(codes) => {
+                      setRecoveryCodes(codes);
+                      setShow2FAModal(false);
+                    }}
+                  />
                 </Card>
 
                 {/* Login Sessions */}
@@ -491,16 +518,16 @@ const Settings = () => {
         <Col xs={24} lg={8}>
           <Card title="Quick Actions">
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Button block icon={<UserOutlined />}>
+              <Button block icon={<UserOutlined />} onClick={() => navigate('/profile')}>
                 Edit Profile
               </Button>
-              <Button block icon={<BellOutlined />}>
+              <Button block icon={<BellOutlined />} onClick={() => setNotificationModalVisible(true)}>
                 Notification Center
               </Button>
-              <Button block icon={<SecurityScanOutlined />}>
+              <Button block icon={<SecurityScanOutlined />} onClick={() => setActiveTab('security')}>
                 Security Checkup
               </Button>
-              <Button block icon={<GlobalOutlined />}>
+              <Button block icon={<GlobalOutlined />} onClick={() => setLanguageModalVisible(true)}>
                 Language Settings
               </Button>
             </Space>
@@ -538,9 +565,17 @@ const Settings = () => {
           </Space>
         }
         open={deleteModalVisible}
-        onCancel={() => setDeleteModalVisible(false)}
+        onCancel={() => {
+          setDeleteModalVisible(false)
+          setDeletePassword('')
+          setDeleteError('')
+        }}
         footer={[
-          <Button key="cancel" onClick={() => setDeleteModalVisible(false)}>
+          <Button key="cancel" onClick={() => {
+            setDeleteModalVisible(false)
+            setDeletePassword('')
+            setDeleteError('')
+          }}>
             Cancel
           </Button>,
           <Button 
@@ -569,9 +604,34 @@ const Settings = () => {
             <li>Cancel any active internships (for businesses)</li>
             <li>Revoke access to all certificates</li>
           </ul>
-          <Text strong>Type &quot;DELETE&quot; to confirm:</Text>
-          <Input placeholder="Type DELETE to confirm" />
+          <Text strong>Enter your password to confirm:</Text>
+          <Input.Password 
+            placeholder="Enter your password" 
+            value={deletePassword}
+            onChange={e => setDeletePassword(e.target.value)}
+            onPressEnter={handleDeleteAccount}
+          />
+          {deleteError && <Text type="danger">{deleteError}</Text>}
         </Space>
+      </Modal>
+      {/* Notification Center Modal */}
+      <Modal
+        title="Notification Center"
+        open={notificationModalVisible}
+        onCancel={() => setNotificationModalVisible(false)}
+        footer={null}
+        width={400}
+      >
+        <NotificationList />
+      </Modal>
+      {/* Language Settings Modal */}
+      <Modal
+        title="Language Settings"
+        open={languageModalVisible}
+        onCancel={() => setLanguageModalVisible(false)}
+        footer={null}
+      >
+        <p>Language selection coming soon!</p>
       </Modal>
     </div>
   )
