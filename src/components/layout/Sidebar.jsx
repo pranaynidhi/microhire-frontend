@@ -35,6 +35,12 @@ const Sidebar = () => {
       if (isMobile) closeMobileSidebar();
       return;
     }
+    // Handle admin tab links
+    if (key.startsWith('/admin?tab=')) {
+      navigate(key);
+      if (isMobile) closeMobileSidebar();
+      return;
+    }
     navigate(key);
     if (isMobile) {
       closeMobileSidebar();
@@ -100,16 +106,24 @@ const Sidebar = () => {
         label: 'Admin Panel',
         children: [
           {
-            key: '/admin/users',
+            key: '/admin?tab=users',
             label: 'Users',
           },
           {
-            key: '/admin/internships',
+            key: '/admin?tab=internships',
             label: 'Internships',
           },
           {
-            key: '/admin/reports',
+            key: '/admin?tab=reports',
             label: 'Reports',
+          },
+          {
+            key: '/admin?tab=certificates',
+            label: 'Certificates',
+          },
+          {
+            key: '/admin?tab=settings',
+            label: 'Settings',
           },
         ]
       },

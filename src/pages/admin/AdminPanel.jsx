@@ -236,6 +236,20 @@ const AdminPanel = () => {
     },
   });
 
+  // Certificates useQuery (must be before any use of refetchCertificates)
+  const {
+    data: certificatesData,
+    isLoading: certificatesLoading,
+    error: certificatesError,
+    refetch: refetchCertificates
+  } = useQuery({
+    queryKey: ["admin-certificates"],
+    queryFn: () => adminAPI.getCertificates().then(res => res.data),
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to fetch certificates");
+    },
+  });
+
   // Fetch system settings on mount
   useEffect(() => {
     const fetchSettings = async () => {
@@ -658,6 +672,51 @@ const AdminPanel = () => {
       toast.error('Failed to issue certificate');
     } finally {
       setIssueLoading(false);
+    }
+  };
+
+  // Add state for moderation modal above AdminPanel component
+  const [moderationModal, setModerationModal] = useState({ open: false, review: null });
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const openModerationModal = (review) => setModerationModal({ open: true, review });
+  const closeModerationModal = () => setModerationModal({ open: false, review: null });
+  const handleApprove = async () => {
+    setModerationLoading(true);
+    try {
+      await reviewAPI.moderateReview(moderationModal.review.id, { action: 'approve' });
+      toast.success('Review approved!');
+      closeModerationModal();
+      queryClient.invalidateQueries(["admin-reports"]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve review');
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+  const handleReject = async () => {
+    setModerationLoading(true);
+    try {
+      await reviewAPI.moderateReview(moderationModal.review.id, { action: 'reject' });
+      toast.success('Review rejected!');
+      closeModerationModal();
+      queryClient.invalidateQueries(["admin-reports"]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject review');
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+  const handleDelete = async () => {
+    setModerationLoading(true);
+    try {
+      await reviewAPI.deleteReview(moderationModal.review.id);
+      toast.success('Review deleted!');
+      closeModerationModal();
+      queryClient.invalidateQueries(["admin-reports"]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete review');
+    } finally {
+      setModerationLoading(false);
     }
   };
 
