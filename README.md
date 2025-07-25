@@ -2,6 +2,13 @@
 
 A modern React-based frontend for the MicroHire internship platform, built with Vite, Ant Design, and comprehensive state management.
 
+## Project Overview
+MicroHire is a modern web platform for connecting students and businesses for internships. It features secure authentication, role-based dashboards, real-time messaging, analytics, and a responsive UI.
+
+## Version Control & Video Demo
+- **GitHub Repository:** https://github.com/pranaynidhi/microhire-frontend
+- **Video Demo:** [YOUR_YOUTUBE_VIDEO_LINK]
+
 ## Features
 
 - 🎨 **Modern UI**: Built with Ant Design components
@@ -60,11 +67,12 @@ VITE_APP_NAME=MicroHire
 
 ## Features Overview
 
-### Authentication
+### Authentication & Session Management
 - Secure login/register with JWT tokens
 - Password reset functionality
-- Role-based access control
+- Role-based access control (Student, Business, Admin)
 - Automatic token refresh
+- Session management for persistent login
 
 ### Internship Management
 - Browse available internships
@@ -166,6 +174,8 @@ server {
 - **Secure API Calls**: Credentials included in requests
 - **Input Validation**: Client-side validation
 - **XSS Protection**: React's built-in XSS protection
+- **Environment Variables**: Sensitive config managed via `.env`
+- **JWT Storage**: Tokens stored securely in memory or HTTP-only cookies
 
 ## Contributing
 
