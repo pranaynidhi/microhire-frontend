@@ -14,7 +14,7 @@ import {
 import { 
   SearchOutlined, 
   BookOutlined, 
-  CompanyOutlined, 
+  BankOutlined, 
   UserOutlined,
   ReloadOutlined
 } from '@ant-design/icons'
@@ -148,7 +148,7 @@ const SearchPage = () => {
       case 'internships':
         return <BookOutlined />
       case 'companies':
-        return <CompanyOutlined />
+        return <BankOutlined />
       case 'students':
         return <UserOutlined />
       default:

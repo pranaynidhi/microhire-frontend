@@ -111,18 +111,34 @@ export const AuthProvider = ({ children }) => {
         response = await twoFactorAPI.verifyLogin(email, token);
       }
       
-      if (response.data?.accessToken) {
-        const { accessToken: newToken, user: userData } = response.data;
+      // Check for the correct response structure
+      if (response.data?.success && response.data?.data?.accessToken) {
+        const { accessToken: newToken, refreshToken } = response.data.data;
         
         localStorage.setItem("token", newToken);
+        if (refreshToken) {
+          localStorage.setItem("refreshToken", refreshToken);
+        }
         setToken(newToken);
-        setUser(userData);
         
-        toast.success(`Welcome back, ${userData.fullName}!`);
-        return { 
-          success: true, 
-          user: userData 
-        };
+        // Fetch user data since it's not returned in 2FA verification
+        try {
+          const userResponse = await authAPI.getMe();
+          setUser(userResponse.data.user);
+          toast.success(`Welcome back, ${userResponse.data.user.fullName}!`);
+          return { 
+            success: true, 
+            user: userResponse.data.user,
+            accessToken: newToken
+          };
+        } catch (userError) {
+          console.error('Failed to fetch user data:', userError);
+          // Still return success but without user data
+          return { 
+            success: true, 
+            accessToken: newToken
+          };
+        }
       }
       
       throw new Error('Invalid verification code');

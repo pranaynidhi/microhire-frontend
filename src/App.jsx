@@ -205,7 +205,7 @@ function App() {
         <SocketProvider>
           <SidebarProvider>
             <ConfigProvider>
-              <Toaster />
+              <Toaster position="top-right" />
               <AppContent />
             </ConfigProvider>
           </SidebarProvider>

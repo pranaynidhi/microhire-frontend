@@ -19,10 +19,10 @@ import {
   EyeOutlined, 
   BookOutlined, 
   StarOutlined,
-  LocationOutlined,
+  EnvironmentOutlined,
   DollarOutlined,
   CalendarOutlined,
-  CompanyOutlined,
+  BankOutlined,
   UserOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -104,7 +104,7 @@ const SearchResults = ({
           
           <Space wrap style={{ marginBottom: 12 }}>
             <Text>
-              <LocationOutlined /> {item.location}
+              <EnvironmentOutlined /> {item.location}
             </Text>
             <Text>
               <DollarOutlined /> ${item.stipend?.toLocaleString()}/month
@@ -128,7 +128,7 @@ const SearchResults = ({
           <Avatar 
             size={64} 
             src={item.company?.logoUrl}
-            icon={<CompanyOutlined />}
+            icon={<BankOutlined />}
           />
         </div>
       </div>
@@ -177,7 +177,7 @@ const SearchResults = ({
           
           <Space wrap style={{ marginBottom: 12 }}>
             <Text>
-              <LocationOutlined /> {item.location}
+              <EnvironmentOutlined /> {item.location}
             </Text>
             <Text>
               <UserOutlined /> {item.employeeCount} employees
@@ -201,7 +201,7 @@ const SearchResults = ({
           <Avatar 
             size={64} 
             src={item.logoUrl}
-            icon={<CompanyOutlined />}
+            icon={<BankOutlined />}
           />
         </div>
       </div>
@@ -250,7 +250,7 @@ const SearchResults = ({
           
           <Space wrap style={{ marginBottom: 12 }}>
             <Text>
-              <LocationOutlined /> {item.location}
+              <EnvironmentOutlined /> {item.location}
             </Text>
             <Text>
               <BookOutlined /> {item.skills?.length || 0} skills

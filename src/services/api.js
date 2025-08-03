@@ -120,8 +120,10 @@ export const twoFactorAPI = {
   verifyLogin: withCsrf((email, token) => api.post('/2fa/verify-login', { email, token })),
   // Generate new recovery codes
   generateRecoveryCodes: withCsrf(() => api.get('/2fa/recovery-codes')),
-  // Verify recovery code
+  // Verify recovery code during login
   verifyRecoveryCode: withCsrf((email, code) => api.post('/2fa/recover', { email, code })),
+  // Verify recovery code for authenticated users
+  verifyRecoveryCodeAuth: withCsrf((code) => api.post('/2fa/verify-recovery', { code })),
 };
 
 // Auth API

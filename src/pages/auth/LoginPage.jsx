@@ -64,11 +64,22 @@ const LoginPage = () => {
       // Save token to localStorage
       localStorage.setItem("token", result.accessToken);
       // Optionally, save refreshToken as well
-      // localStorage.setItem("refreshToken", result.refreshToken);
+      if (result.refreshToken) {
+        localStorage.setItem("refreshToken", result.refreshToken);
+      }
       console.log('2FA Success:', result);
       setShow2FAModal(false);
       setTwoFAData({ email: '', tempToken: '' });
-      navigate("/dashboard");
+      
+      // Get user from context after successful login
+      const userData = JSON.parse(localStorage.getItem("user"));
+      
+      // Redirect admin users to admin panel, others to dashboard
+      if (userData?.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     }
   };
   

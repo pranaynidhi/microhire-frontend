@@ -21,7 +21,7 @@ import {
   ClearOutlined,
   HistoryOutlined,
   StarOutlined,
-  LocationOutlined,
+  EnvironmentOutlined,
   CalendarOutlined,
   DollarOutlined
 } from '@ant-design/icons'
@@ -199,7 +199,7 @@ const AdvancedSearch = ({ onSearch, initialFilters = {} }) => {
               <Text strong>Location</Text>
               <Input
                 placeholder="City, Country"
-                prefix={<LocationOutlined />}
+                prefix={<EnvironmentOutlined />}
                 value={filters.location}
                 onChange={(e) => setFilters({ ...filters, location: e.target.value })}
               />
