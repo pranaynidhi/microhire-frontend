@@ -22,6 +22,8 @@ import LandingPage from './pages/public/LandingPage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
+import EmailVerification from './pages/auth/EmailVerification'
+import ResetPassword from './pages/auth/ResetPassword'
 
 // Protected Pages
 import Dashboard from './pages/dashboard/Dashboard'
@@ -34,11 +36,13 @@ import Profile from './pages/profile/Profile'
 import Analytics from './pages/analytics/Analytics'
 import AdminPanel from './pages/admin/AdminPanel'
 import Settings from './pages/settings/Settings'
+import SearchPage from './pages/search/SearchPage'
 
 // Components
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import BackendStatus from './components/common/BackendStatus'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 const { Content } = Layout
 
@@ -107,6 +111,14 @@ function AppContent() {
                 path="/forgot-password" 
                 element={isAuthenticated ? <Navigate to="/dashboard" /> : <ForgotPasswordPage />} 
               />
+              <Route 
+                path="/verify-email" 
+                element={<EmailVerification />} 
+              />
+              <Route 
+                path="/reset-password" 
+                element={<ResetPassword />} 
+              />
 
               {/* Protected Routes */}
               <Route path="/dashboard" element={
@@ -168,6 +180,12 @@ function AppContent() {
                   <Settings />
                 </ProtectedRoute>
               } />
+              
+              <Route path="/search" element={
+                <ProtectedRoute>
+                  <SearchPage />
+                </ProtectedRoute>
+              } />
 
               {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" />} />
@@ -182,16 +200,18 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <SidebarProvider>
-          <ConfigProvider>
-            <Toaster />
-            <AppContent />
-          </ConfigProvider>
-        </SidebarProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <SocketProvider>
+          <SidebarProvider>
+            <ConfigProvider>
+              <Toaster />
+              <AppContent />
+            </ConfigProvider>
+          </SidebarProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

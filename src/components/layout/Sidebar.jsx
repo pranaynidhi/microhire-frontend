@@ -14,7 +14,8 @@ import {
   TeamOutlined,
   TrophyOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 
 const { Sider } = Layout
@@ -58,6 +59,11 @@ const Sidebar = () => {
         key: '/internships',
         icon: <FolderOutlined />,
         label: 'Internships',
+      },
+      {
+        key: '/search',
+        icon: <SearchOutlined />,
+        label: 'Search',
       },
       {
         key: '/applications',
